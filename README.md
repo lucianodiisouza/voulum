@@ -26,9 +26,9 @@ The list updates itself while the menu is open — no refresh needed.
 > refuse to open it on the first try. This is expected — here's the one-time
 > workaround.
 
-1. Download **`Voulum-vX.Y.Z-macos.zip`** from the
-   [latest release](../../releases/latest) and unzip it.
-2. Drag **Voulum.app** into your **Applications** folder.
+1. Download **`Voulum-vX.Y.Z-macos.dmg`** from the
+   [latest release](../../releases/latest) and open it.
+2. Drag **Voulum.app** onto the **Applications** shortcut in the window.
 3. Clear the quarantine flag so macOS will run it. Open **Terminal** and run:
 
    ```bash

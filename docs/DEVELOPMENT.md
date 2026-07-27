@@ -87,10 +87,11 @@ Releases are automated with **Conventional Commits** + **release-please**.
    `project.yml` (via the `x-release-please-version` marker).
 3. **Merge that PR.** release-please tags `vX.Y.Z` and publishes a GitHub
    Release with the generated notes.
-4. Publishing the release triggers
-   [`release-build`](../.github/workflows/release-build.yml): it builds a
-   Release `.app`, ad-hoc signs it, zips it, and attaches
-   `Voulum-vX.Y.Z-macos.zip` to the release.
+4. The **same** [`release-please`](../.github/workflows/release-please.yml) run
+   then builds a Release `.app`, ad-hoc signs it, packages it into
+   `Voulum-vX.Y.Z-macos.dmg`, and attaches it to the release. (The build must
+   share that workflow run — a release created by the built-in `GITHUB_TOKEN`
+   cannot trigger a separate `on: release` workflow.)
 
 [`build`](../.github/workflows/build.yml) compiles every push and PR as a sanity
 check.

@@ -2,8 +2,12 @@ name: release-please
 
 # Reads Conventional Commits on main, maintains CHANGELOG.md + the version in
 # project.yml, and keeps an open "release PR". Merging that PR tags the commit
-# (vX.Y.Z) and publishes a GitHub Release — which in turn triggers
-# release-build.yml to attach the built .app.
+# (vX.Y.Z) and publishes a GitHub Release.
+#
+# The build job runs in the SAME workflow run (gated on release_created) and
+# attaches the .dmg. It must live here rather than in a separate
+# `on: release` workflow because a release created by the built-in GITHUB_TOKEN
+# does not trigger further workflows.
 
 on:
   push:
@@ -16,8 +20,66 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: release
+        uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  release-dmg:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: macos-15
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Release)
+        run: |
+          xcodebuild \
+            -project Voulum.xcodeproj \
+            -scheme Voulum \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package .dmg
+        run: |
+          APP="build/Build/Products/Release/Voulum.app"
+          # Ad-hoc sign so Gatekeeper accepts it once quarantine is cleared.
+          codesign --force --deep --sign - \
+            --entitlements Sources/Voulum/Voulum.entitlements "$APP"
+          STAGE="$(mktemp -d)/dmg"
+          mkdir -p "$STAGE"
+          cp -R "$APP" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          DMG="Voulum-${TAG}-macos.dmg"
+          hdiutil create -volname "Voulum" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+          echo "DMG=$DMG" >> "$GITHUB_ENV"
+
+      - name: Attach .dmg to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$DMG" --clobber
