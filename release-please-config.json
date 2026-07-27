@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "voulum",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "generic", "path": "project.yml" }
+      ]
+    }
+  }
+}
