@@ -1,0 +1,9 @@
+# Xcode / build
+Voulum.xcodeproj/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store
