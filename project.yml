@@ -1,0 +1,31 @@
+name: Voulum
+options:
+  bundleIdPrefix: com.voulum
+  deploymentTarget:
+    macOS: "14.4"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0" # x-release-please-version
+    CURRENT_PROJECT_VERSION: "1"
+    # Swift 5 language mode: Core Audio C callbacks are painful under Swift 6
+    # strict concurrency. Revisit once the audio plumbing is stable.
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Voulum:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Voulum
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.voulum.app
+        PRODUCT_NAME: Voulum
+        INFOPLIST_FILE: Sources/Voulum/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/Voulum/Voulum.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: NO
+        MACOSX_DEPLOYMENT_TARGET: "14.4"
