@@ -93,7 +93,10 @@ struct AudioProcessRow: View {
     private var isMuted: Bool { controller.isMuted(process) }
     private var volume: Binding<Double> {
         Binding(
-            get: { Double(controller.volume(for: process)) },
+            // While muted, show the slider parked at 0 rather than the stored
+            // level, so the thumb matches the audible state. Moving it un-mutes
+            // (setVolume clears mute for any value > 0).
+            get: { isMuted ? 0 : Double(controller.volume(for: process)) },
             set: { controller.setVolume(Float($0), for: process) }
         )
     }
@@ -135,7 +138,6 @@ struct AudioProcessRow: View {
                 .help(isMuted ? "Unmute" : "Mute")
 
                 Slider(value: volume, in: 0...Double(AudioProcessController.maxGain))
-                    .disabled(isMuted)
                     .controlSize(.small)
 
                 Text(percentLabel)
