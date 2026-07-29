@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/lucianodiisouza/voulum/compare/v0.2.1...v0.3.0) (2026-07-29)
+
+
+### Features
+
+* add scripts for cleaning and running Voulum application ([cf601f6](https://github.com/lucianodiisouza/voulum/commit/cf601f61a788c4ffe6f82c2e9335e7f39d211f8a))
+
+
+### Bug Fixes
+
+* exclude Voulum's own process from the audio list ([fb2daec](https://github.com/lucianodiisouza/voulum/commit/fb2daecabc7e8b42711095c3c2761aa10dec4b10))
+* run Core Audio HAL calls off the main thread to prevent hangs ([ff53b25](https://github.com/lucianodiisouza/voulum/commit/ff53b25d4e5b4ba4d09da82e0a41fecfce069f88))
+* tap only the selected app, not every other app ([4d472c2](https://github.com/lucianodiisouza/voulum/commit/4d472c29fa2bfc1aa5c8e3e9a235c4d7c230f537))
+
 ## [0.2.1](https://github.com/lucianodiisouza/voulum/compare/v0.2.0...v0.2.1) (2026-07-27)
 
 
