@@ -5,11 +5,13 @@ import SwiftUI
 struct VoulumApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var controller = AudioProcessController.shared
+    @StateObject private var updater = Updater()
 
     var body: some Scene {
         MenuBarExtra {
             MenuView()
                 .environmentObject(controller)
+                .environmentObject(updater)
         } label: {
             // SF Symbol that reads as "audio sources".
             Image(systemName: "speaker.wave.2.fill")

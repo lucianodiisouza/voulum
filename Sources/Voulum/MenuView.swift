@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuView: View {
     @EnvironmentObject var controller: AudioProcessController
+    @EnvironmentObject var updater: Updater
     @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
@@ -70,6 +71,9 @@ struct MenuView: View {
                 Button("Quit Voulum") { NSApp.terminate(nil) }
                     .buttonStyle(.borderless)
                 Spacer()
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .buttonStyle(.borderless)
+                    .disabled(!updater.canCheckForUpdates)
             }
         }
         .padding(.horizontal, 14)

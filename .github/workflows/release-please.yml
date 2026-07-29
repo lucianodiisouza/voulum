@@ -38,6 +38,7 @@ jobs:
       contents: write
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,12 +55,18 @@ jobs:
 
       - name: Build (Release)
         run: |
+          # Sparkle compares updates by CFBundleVersion. project.yml pins that to
+          # "1", so without this override every release would look identical to
+          # Sparkle and no update would ever be offered. Feed it the release
+          # version (tag without the leading "v") so 0.3.0 > 0.2.1 as expected.
+          VERSION="${TAG#v}"
           xcodebuild \
             -project Voulum.xcodeproj \
             -scheme Voulum \
             -configuration Release \
             -destination 'generic/platform=macOS' \
             -derivedDataPath build \
+            CURRENT_PROJECT_VERSION="$VERSION" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -83,3 +90,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$DMG" --clobber
+
+      # --- Sparkle auto-update feed ---------------------------------------
+      # Signs the .dmg with the EdDSA private key and (re)builds appcast.xml,
+      # the RSS feed the running app polls (SUFeedURL in Info.plist). Skipped
+      # automatically until the signing secret is configured, so releases keep
+      # working before auto-update is switched on. See docs/UPDATES.md.
+      - name: Generate signed appcast
+        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SPARKLE_VERSION=2.6.4
+          curl -fsSL -o sparkle.tar.xz \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
+
+          # generate_appcast reads the version out of the .app inside each
+          # archive, so it only needs a folder of DMGs to work from.
+          mkdir -p updates
+          cp "$DMG" updates/
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > sparkle_ed_key
+          sparkle/bin/generate_appcast \
+            --ed-key-file sparkle_ed_key \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${TAG}/" \
+            updates
+          rm -f sparkle_ed_key
+
+          gh release upload "$TAG" updates/appcast.xml --clobber

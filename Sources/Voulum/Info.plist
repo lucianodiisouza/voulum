@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Voulum</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -12,8 +14,6 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Voulum</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,9 +27,19 @@
 	<true/>
 	<!-- Shown when macOS prompts for audio-capture permission (needed to tap
 	     another process's audio for volume control). -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<!-- Sparkle auto-update. SUPublicEDKey must be filled in before updates
+	     will verify — see docs/UPDATES.md. Interval is 24h. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/lucianodiisouza/voulum/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>
