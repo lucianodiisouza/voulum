@@ -24,6 +24,13 @@ final class AudioProcessController: ObservableObject {
     /// How often to re-scan while the menu is open.
     private let pollInterval: TimeInterval = 1.0
 
+    /// Serial queue for every blocking Core Audio HAL call (enumeration, tap
+    /// activation/teardown, leak reaping). Keeps `coreaudiod` round-trips off the
+    /// main thread so a slow or wedged HAL never freezes the menu-bar UI.
+    private let halQueue = DispatchQueue(label: "com.voulum.hal", qos: .userInitiated)
+    /// Coalesce reloads: skip a scan if the previous one is still on the HAL queue.
+    private var reloadInFlight = false
+
     // MARK: Per-app volume state
 
     /// Active taps, one per app the user has adjusted. Created lazily.
@@ -69,22 +76,38 @@ final class AudioProcessController: ObservableObject {
         tap.gain = effective
     }
 
-    /// Lazily create + activate a tap the first time an app is adjusted.
+    /// Lazily create a tap the first time an app is adjusted, then activate it off
+    /// the main thread. The tap is registered immediately so the caller's
+    /// `tap.gain = …` write lands on the right object; the pointer-backed gain is
+    /// read once the IOProc actually starts, so setting it before activation
+    /// finishes is fine. Activation makes blocking HAL calls, so it must not run
+    /// on the main thread — that was the source of the launch/interaction hang.
     private func ensureTap(for process: AudioProcess) -> ProcessTap? {
         if let existing = taps[process.id] { return existing }
         let tap = ProcessTap(process: process)
-        do {
-            try tap.activate()
-            taps[process.id] = tap
-            tapErrors[process.id] = nil
-            rememberPermissionGranted()
-            return tap
-        } catch {
-            let message = String(describing: error)
-            tapErrors[process.id] = message
-            log.error("Tap activation failed for \(process.name, privacy: .public): \(message, privacy: .public)")
-            return nil
+        taps[process.id] = tap
+        tapErrors[process.id] = nil
+
+        let id = process.id
+        let name = process.name  // resolve AppKit-backed name on the main thread
+        halQueue.async { [weak self] in
+            do {
+                try tap.activate()
+                Task { @MainActor in self?.rememberPermissionGranted() }
+            } catch {
+                let message = String(describing: error)
+                log.error("Tap activation failed for \(name, privacy: .public): \(message, privacy: .public)")
+                Task { @MainActor in
+                    guard let self else { return }
+                    // Only clear it if this exact tap is still the registered one.
+                    if self.taps[id] === tap {
+                        self.taps.removeValue(forKey: id)
+                        self.tapErrors[id] = message
+                    }
+                }
+            }
         }
+        return tap
     }
 
     private func rememberPermissionGranted() {
@@ -96,7 +119,7 @@ final class AudioProcessController: ObservableObject {
     /// Tear down taps whose process has exited so we don't leak aggregate devices.
     private func pruneVanishedTaps(livingIDs: Set<AudioObjectID>) {
         for (id, tap) in taps where !livingIDs.contains(id) {
-            tap.invalidate()
+            halQueue.async { tap.invalidate() }  // blocking HAL teardown, off-main
             taps.removeValue(forKey: id)
             volumes.removeValue(forKey: id)
             muted.remove(id)
@@ -110,6 +133,10 @@ final class AudioProcessController: ObservableObject {
         guard !started else { return }
         started = true
         log.info("Voulum starting; enumerating audio processes")
+        // Sweep away any aggregate devices / taps leaked by a previous crash
+        // before we start creating new ones — they otherwise pile up in
+        // coreaudiod and can wedge the whole audio HAL.
+        halQueue.async { ProcessTap.reapLeakedDevices() }
         reload()
         if ProcessInfo.processInfo.environment["VOULUM_SELFTEST"] != nil {
             runSelfTest()
@@ -172,7 +199,27 @@ final class AudioProcessController: ObservableObject {
 
     // MARK: Enumeration
 
+    /// Kick off a scan on the HAL queue and publish the result back on the main
+    /// thread. Enumeration hits `coreaudiod`, so it must not run on the main
+    /// thread. Coalesced: a scan that fires while another is still running is
+    /// dropped (the poll will pick it up next tick).
     func reload() {
+        guard !reloadInFlight else { return }
+        reloadInFlight = true
+        halQueue.async { [weak self] in
+            let result = Self.enumerateProcesses()
+            Task { @MainActor in
+                guard let self else { return }
+                self.reloadInFlight = false
+                self.processes = result
+                self.pruneVanishedTaps(livingIDs: Set(result.map(\.id)))
+            }
+        }
+    }
+
+    /// Blocking HAL enumeration of every audio-capable process. Runs on the HAL
+    /// queue; touches no actor-isolated state.
+    nonisolated private static func enumerateProcesses() -> [AudioProcess] {
         do {
             let objectIDs: [AudioObjectID] = try AudioObjectID.system.readArray(
                 kAudioHardwarePropertyProcessObjectList)
@@ -183,14 +230,14 @@ final class AudioProcessController: ObservableObject {
                 guard let process = makeProcess(objectID) else { continue }
                 result.append(process)
             }
-            self.processes = result
-            pruneVanishedTaps(livingIDs: Set(result.map(\.id)))
+            return result
         } catch {
             log.error("Failed to read process list: \(String(describing: error))")
+            return []
         }
     }
 
-    private func makeProcess(_ objectID: AudioObjectID) -> AudioProcess? {
+    nonisolated private static func makeProcess(_ objectID: AudioObjectID) -> AudioProcess? {
         let pid: pid_t = (try? objectID.read(kAudioProcessPropertyPID, default: pid_t(-1))) ?? -1
         guard pid > 0 else { return nil }
 
