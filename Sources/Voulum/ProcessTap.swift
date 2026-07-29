@@ -17,7 +17,12 @@ import Foundation
 /// `gain` is stored behind a stable pointer so the realtime audio thread can
 /// read it without locking while the UI writes it from the main thread (aligned
 /// 4-byte float access is atomic on Apple Silicon).
-final class ProcessTap {
+/// `@unchecked Sendable`: instances are created on the main thread but activated,
+/// torn down, and reaped on `AudioProcessController`'s serial HAL queue, while the
+/// UI reads `gain`/`isActive`. Cross-thread access is deliberate — `gain` is
+/// pointer-backed (atomic aligned write) and every HAL mutation is serialized on
+/// that one queue.
+final class ProcessTap: @unchecked Sendable {
 
     let process: AudioProcess
 
@@ -51,10 +56,14 @@ final class ProcessTap {
         // 1. Tap the process, muting its normal output.
         let description = CATapDescription(
             stereoMixdownOfProcesses: [process.objectID])
-        description.name = "Voulum-\(process.pid)"
+        description.name = "\(Self.tapNamePrefix)\(process.pid)"
         description.isPrivate = true
         description.muteBehavior = CATapMuteBehavior.mutedWhenTapped
-        description.isExclusive = true
+        // Inclusive list: tap ONLY this process. `isExclusive = true` would flip
+        // the list's meaning to "tap everything EXCEPT this process", which routes
+        // every *other* app's audio through our aggregate — so lowering one app's
+        // slider would mute all the others (and leave the target untouched).
+        description.isExclusive = false
 
         var newTapID: AudioObjectID = .unknown
         var status = AudioHardwareCreateProcessTap(description, &newTapID)
@@ -72,7 +81,7 @@ final class ProcessTap {
             throw TapError.setup("Could not resolve output/tap UID")
         }
 
-        let aggregateUID = "com.voulum.aggregate.\(process.pid).\(UUID().uuidString)"
+        let aggregateUID = "\(Self.aggregateUIDPrefix)\(process.pid).\(UUID().uuidString)"
         let description2: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Voulum \(process.name)",
             kAudioAggregateDeviceUIDKey: aggregateUID,
@@ -183,6 +192,44 @@ final class ProcessTap {
                 }
             } else {
                 memset(dst, 0, Int(outBuf.mDataByteSize))
+            }
+        }
+    }
+}
+
+extension ProcessTap {
+    /// UID prefix stamped on every aggregate device we create. Used both to build
+    /// new ones and to recognise orphans left behind by a previous crash.
+    static let aggregateUIDPrefix = "com.voulum.aggregate."
+    /// Prefix on every process-tap description name we create.
+    static let tapNamePrefix = "Voulum-"
+
+    /// Destroy any private aggregate devices / process taps this app leaked in a
+    /// prior run (e.g. a crash or force-quit that skipped `teardown`). These
+    /// accumulate inside coreaudiod and can eventually wedge the whole audio HAL,
+    /// so we sweep them at launch. Must run off the main thread — it makes
+    /// blocking HAL calls. Safe to call when there's nothing to reap.
+    static func reapLeakedDevices() {
+        // Orphaned aggregate devices.
+        if let devices: [AudioObjectID] = try? AudioObjectID.system.readArray(
+            kAudioHardwarePropertyDevices) {
+            for device in devices where device.isValid {
+                guard let uid: String = try? device.readCF(kAudioDevicePropertyDeviceUID),
+                      uid.hasPrefix(aggregateUIDPrefix) else { continue }
+                let status = AudioHardwareDestroyAggregateDevice(device)
+                log.info("Reaped leaked aggregate \(uid, privacy: .public) (status \(status))")
+            }
+        }
+
+        // Orphaned process taps.
+        if let taps: [AudioObjectID] = try? AudioObjectID.system.readArray(
+            kAudioHardwarePropertyTapList) {
+            for tap in taps where tap.isValid {
+                guard let desc: CATapDescription = try? tap.readCF(kAudioTapPropertyDescription),
+                      desc.name.hasPrefix(tapNamePrefix) else { continue }
+                let name = desc.name
+                let status = AudioHardwareDestroyProcessTap(tap)
+                log.info("Reaped leaked tap \(name, privacy: .public) (status \(status))")
             }
         }
     }
