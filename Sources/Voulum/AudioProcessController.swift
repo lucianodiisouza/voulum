@@ -237,9 +237,15 @@ final class AudioProcessController: ObservableObject {
         }
     }
 
+    /// Our own pid — never list or tap ourselves. Because Voulum re-plays the
+    /// audio it taps, Core Audio attributes that output to us, so we'd otherwise
+    /// appear as a "playing" app; tapping ourselves would mute-and-reroute our own
+    /// output into our own input, a feedback loop that kills all audio until quit.
+    nonisolated private static let ownPID: pid_t = ProcessInfo.processInfo.processIdentifier
+
     nonisolated private static func makeProcess(_ objectID: AudioObjectID) -> AudioProcess? {
         let pid: pid_t = (try? objectID.read(kAudioProcessPropertyPID, default: pid_t(-1))) ?? -1
-        guard pid > 0 else { return nil }
+        guard pid > 0, pid != ownPID else { return nil }
 
         let bundleID: String? = try? objectID.readCF(kAudioProcessPropertyBundleID, as: String.self) ?? nil
         let isRunningOutput: UInt32 = (try? objectID.read(
