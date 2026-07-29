@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/lucianodiisouza/voulum/compare/v0.3.1...v0.4.0) (2026-07-29)
+
+
+### Features
+
+* now-playing metadata and media controls for Spotify & Apple Music ([d841bf1](https://github.com/lucianodiisouza/voulum/commit/d841bf1233753165c9a45bf7a79459019dec8489))
+* scroll overflowing track text instead of truncating ([b986a29](https://github.com/lucianodiisouza/voulum/commit/b986a29eae95084422f2b98b52e19382e0b2e8a2))
+* support VLC now-playing and transport ([8bd1415](https://github.com/lucianodiisouza/voulum/commit/8bd1415595bd41d78e5e530fe96e124b659b992a))
+
+
+### Bug Fixes
+
+* contain MarqueeText so it can't widen the menu window ([a3af1b1](https://github.com/lucianodiisouza/voulum/commit/a3af1b18d639491b5c8ce22ffdc889a1823d2fbb))
+
 ## [0.3.1](https://github.com/lucianodiisouza/voulum/compare/v0.3.0...v0.3.1) (2026-07-29)
 
 
