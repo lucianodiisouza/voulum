@@ -110,24 +110,18 @@ struct AudioProcessRow: View {
                     if let track = controller.nowPlaying(for: process) {
                         // Rich metadata from a scriptable media app: show the
                         // track and artist, with the app name as the quiet line.
-                        Text(track.title)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                        Text(track.subtitle.isEmpty ? process.name : "\(track.subtitle) · \(process.name)")
-                            .font(.caption)
+                        MarqueeText(text: track.title, weight: .medium)
+                        MarqueeText(text: track.subtitle.isEmpty ? process.name : "\(track.subtitle) · \(process.name)",
+                                    font: .caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
                     } else {
-                        Text(process.name)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
+                        MarqueeText(text: process.name, weight: .medium)
                         Text(process.isPlaying ? "Playing" : "Idle")
                             .font(.caption)
                             .foregroundStyle(process.isPlaying ? Color.green : .secondary)
                     }
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if controller.nowPlaying(for: process) != nil {
                     transportControls
