@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/lucianodiisouza/voulum/compare/v0.3.0...v0.3.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* keep the volume slider usable while muted ([f3d33d5](https://github.com/lucianodiisouza/voulum/commit/f3d33d5c48d22cdf45e2a8bf378d1e0c8e79bce3))
+
 ## [0.3.0](https://github.com/lucianodiisouza/voulum/compare/v0.2.1...v0.3.0) (2026-07-29)
 
 
