@@ -25,6 +25,13 @@ struct AudioProcess: Identifiable, Hashable {
         runningApp?.icon
     }
 
+    /// The bundle id of the user-facing owning app, preferring the resolved
+    /// foreground app over Core Audio's raw (often helper) attribution. Used to
+    /// decide whether we can read now-playing metadata for this process.
+    var resolvedBundleID: String? {
+        runningApp?.bundleIdentifier ?? bundleID
+    }
+
     /// The user-facing app that owns this audio process.
     ///
     /// Core Audio often reports a *helper* process (e.g. a Chrome/Electron

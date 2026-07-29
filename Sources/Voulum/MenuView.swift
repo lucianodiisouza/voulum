@@ -107,15 +107,31 @@ struct AudioProcessRow: View {
                 appIcon
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(process.name)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    Text(process.isPlaying ? "Playing" : "Idle")
-                        .font(.caption)
-                        .foregroundStyle(process.isPlaying ? Color.green : .secondary)
+                    if let track = controller.nowPlaying(for: process) {
+                        // Rich metadata from a scriptable media app: show the
+                        // track and artist, with the app name as the quiet line.
+                        Text(track.title)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        Text(track.subtitle.isEmpty ? process.name : "\(track.subtitle) · \(process.name)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text(process.name)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        Text(process.isPlaying ? "Playing" : "Idle")
+                            .font(.caption)
+                            .foregroundStyle(process.isPlaying ? Color.green : .secondary)
+                    }
                 }
 
                 Spacer()
+
+                if controller.nowPlaying(for: process) != nil {
+                    transportControls
+                }
 
                 Button {
                     process.activate()
@@ -166,6 +182,37 @@ struct AudioProcessRow: View {
     /// is the audio-recording permission not being granted yet.
     private func errorHint(_ raw: String) -> String {
         "Couldn't tap audio. Grant Voulum permission in System Settings ▸ Privacy & Security ▸ Microphone, then retry."
+    }
+
+    /// Previous / play-pause / next, for the scriptable media apps. Only shown
+    /// when we have now-playing metadata, so the icon reflects real state.
+    @ViewBuilder private var transportControls: some View {
+        let isPlaying = controller.nowPlaying(for: process)?.isPlaying ?? false
+        HStack(spacing: 8) {
+            Button {
+                controller.sendMediaCommand(.previous, to: process)
+            } label: {
+                Image(systemName: "backward.fill")
+            }
+            .help("Previous track")
+
+            Button {
+                controller.sendMediaCommand(.playPause, to: process)
+            } label: {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            }
+            .help(isPlaying ? "Pause" : "Play")
+
+            Button {
+                controller.sendMediaCommand(.next, to: process)
+            } label: {
+                Image(systemName: "forward.fill")
+            }
+            .help("Next track")
+        }
+        .buttonStyle(.borderless)
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
     }
 
     @ViewBuilder private var appIcon: some View {
