@@ -31,6 +31,47 @@ final class AudioProcessController: ObservableObject {
     /// Coalesce reloads: skip a scan if the previous one is still on the HAL queue.
     private var reloadInFlight = false
 
+    // MARK: Now-playing metadata
+
+    /// Latest track metadata per process, for the scriptable media apps we
+    /// support (Spotify / Apple Music). Absent for everything else — see
+    /// `NowPlayingService` for why the generic path is unavailable.
+    @Published private(set) var nowPlaying: [AudioObjectID: NowPlaying] = [:]
+
+    /// Serial queue for the blocking AppleScript round-trips that read track
+    /// metadata. Kept off the main thread and off the HAL queue.
+    private let scriptQueue = DispatchQueue(label: "com.voulum.nowplaying", qos: .userInitiated)
+    /// Skip a metadata sweep if the previous batch is still running.
+    private var nowPlayingRefreshInFlight = false
+
+    func nowPlaying(for process: AudioProcess) -> NowPlaying? { nowPlaying[process.id] }
+
+    /// Send a transport command (play/pause, next, previous) to the media app
+    /// backing this process, if it's one we can script. The play/pause icon is
+    /// flipped optimistically so it responds instantly; the next poll (or the
+    /// short follow-up refresh below) reconciles it with the app's real state.
+    func sendMediaCommand(_ command: NowPlayingService.Command, to process: AudioProcess) {
+        guard let bundleID = process.resolvedBundleID,
+              NowPlayingService.supports(bundleID) else { return }
+
+        if command == .playPause, let current = nowPlaying[process.id] {
+            nowPlaying[process.id] = NowPlaying(title: current.title,
+                                                artist: current.artist,
+                                                album: current.album,
+                                                isPlaying: !current.isPlaying)
+        }
+
+        scriptQueue.async { [weak self] in
+            NowPlayingService.send(command, bundleID: bundleID)
+            // Give the app a beat to settle on the new track/state, then pull
+            // fresh metadata so next/previous update the title promptly.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                self?.refreshNowPlaying()
+            }
+        }
+    }
+
     // MARK: Per-app volume state
 
     /// Active taps, one per app the user has adjusted. Created lazily.
@@ -212,7 +253,51 @@ final class AudioProcessController: ObservableObject {
                 guard let self else { return }
                 self.reloadInFlight = false
                 self.processes = result
-                self.pruneVanishedTaps(livingIDs: Set(result.map(\.id)))
+                let living = Set(result.map(\.id))
+                self.pruneVanishedTaps(livingIDs: living)
+                self.nowPlaying = self.nowPlaying.filter { living.contains($0.key) }
+                self.refreshNowPlaying()
+            }
+        }
+    }
+
+    /// Read track metadata for the currently playing processes that come from a
+    /// scriptable media app, off the main thread, and publish the results.
+    /// Coalesced so a slow AppleScript round-trip can't pile up behind the poll.
+    private func refreshNowPlaying() {
+        guard !nowPlayingRefreshInFlight else { return }
+
+        // Resolve the scripting targets on the main thread (AppKit-backed
+        // bundle-id lookup), then hand just the ids off to the script queue.
+        let targets: [(id: AudioObjectID, bundleID: String)] = playing.compactMap { process in
+            guard let bundleID = process.resolvedBundleID,
+                  NowPlayingService.supports(bundleID) else { return nil }
+            return (process.id, bundleID)
+        }
+
+        // Drop metadata for anything no longer playing (e.g. paused mid-session).
+        let playingIDs = Set(targets.map(\.id))
+        if nowPlaying.keys.contains(where: { !playingIDs.contains($0) }) {
+            nowPlaying = nowPlaying.filter { playingIDs.contains($0.key) }
+        }
+        guard !targets.isEmpty else { return }
+
+        nowPlayingRefreshInFlight = true
+        scriptQueue.async { [weak self] in
+            var fetched: [AudioObjectID: NowPlaying] = [:]
+            for target in targets {
+                if let info = NowPlayingService.fetch(bundleID: target.bundleID) {
+                    fetched[target.id] = info
+                }
+            }
+            Task { @MainActor in
+                guard let self else { return }
+                self.nowPlayingRefreshInFlight = false
+                for (id, info) in fetched { self.nowPlaying[id] = info }
+                // Clear entries whose fetch came back empty this round.
+                for id in playingIDs where fetched[id] == nil {
+                    self.nowPlaying.removeValue(forKey: id)
+                }
             }
         }
     }

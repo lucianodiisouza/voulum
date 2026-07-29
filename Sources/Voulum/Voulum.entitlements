@@ -5,5 +5,9 @@
 	<!-- Required to create Core Audio process taps (they count as audio input). -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- Required under the hardened runtime to send Apple events to media apps
+	     (Spotify / Apple Music) so we can read now-playing track metadata. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 </dict>
 </plist>

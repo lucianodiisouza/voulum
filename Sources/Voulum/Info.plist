@@ -31,5 +31,9 @@
 	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<!-- Shown when macOS prompts to allow controlling a media app (Spotify,
+	     Apple Music, VLC), used to read the current track and drive playback. -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Voulum reads the current track from media apps like Spotify, Apple Music, and VLC to show what's playing and let you control it.</string>
 </dict>
 </plist>
