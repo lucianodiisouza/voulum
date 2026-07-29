@@ -46,6 +46,8 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       # True only when a signing certificate secret is present.
       HAS_CERT: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+      # True only when a token for the Homebrew tap repo is present.
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -149,3 +151,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$DMG" --clobber
+
+      # --- Homebrew: bump the cask in the tap (if token present) -------------
+      # Copies this repo's canonical Casks/voulum.rb into the tap repo with the
+      # new version + the uploaded DMG's sha256. Optional and automatic: skipped
+      # until HOMEBREW_TAP_TOKEN and the tap repo exist (see docs/HOMEBREW.md).
+      - name: Update Homebrew tap
+        if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${TAG#v}"
+          SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+          git clone --depth 1 \
+            "https://x-access-token:${TAP_TOKEN}@github.com/${{ github.repository_owner }}/homebrew-voulum.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/^  version \".*\"/  version \"${VERSION}\"/" \
+              -e "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" \
+              Casks/voulum.rb > tap/Casks/voulum.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/voulum.rb
+          git diff --cached --quiet && { echo "cask already up to date"; exit 0; }
+          git commit -m "voulum ${VERSION}"
+          git push
