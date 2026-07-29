@@ -5,9 +5,12 @@ import SwiftUI
 /// ticker the system Now Playing widget uses. When the text fits, it's a plain
 /// static label.
 ///
-/// Two copies are laid out with a gap and the pair is animated left by exactly
-/// one copy-plus-gap, so the loop is seamless: at the end of a cycle the second
-/// copy sits precisely where the first began.
+/// Layout is deliberately contained so the row keeps its normal width: an
+/// invisible truncating line defines the view's box (a normal, flexible width
+/// and the correct line height), and the visible text — static or scrolling —
+/// rides in an overlay measured against that box and clipped to it. That keeps
+/// the scrolling copies (which are intrinsically far wider than the row) from
+/// leaking their width up into the parent and shoving the menu window around.
 struct MarqueeText: View {
     let text: String
     var font: Font = .body
@@ -19,61 +22,70 @@ struct MarqueeText: View {
     private let velocity: Double = 28
 
     @State private var textWidth: CGFloat = 0
-    @State private var containerWidth: CGFloat = 0
     @State private var offset: CGFloat = 0
 
-    private var overflowing: Bool {
-        containerWidth > 0 && textWidth > containerWidth + 1
-    }
-
     var body: some View {
-        content
+        // Invisible sizer: a normal truncating line. Defines height + a sane,
+        // non-leaking width; the real text is drawn in the overlay.
+        lineText
+            .hidden()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .clipped()
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear { containerWidth = geo.size.width }
-                        .onChange(of: geo.size.width) { _, new in containerWidth = new }
-                }
-            )
-            .onChange(of: text) { _, _ in resync() }
-            .onChange(of: textWidth) { _, _ in resync() }
-            .onChange(of: containerWidth) { _, _ in resync() }
+            .overlay { visible }
+            .background { widthProbe }
     }
 
-    @ViewBuilder private var content: some View {
-        if overflowing {
-            HStack(spacing: spacing) {
-                label
-                label
+    /// The visible layer: measures the space it's been given and either shows a
+    /// static line or the scrolling pair, always clipped to that width.
+    private var visible: some View {
+        GeometryReader { geo in
+            let overflowing = textWidth > geo.size.width + 1
+            Group {
+                if overflowing {
+                    HStack(spacing: spacing) {
+                        lineText.fixedSize()
+                        lineText.fixedSize()
+                    }
+                    .offset(x: offset)
+                } else {
+                    lineText
+                }
             }
-            .offset(x: offset)
-        } else {
-            label
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+            .clipped()
+            .onAppear { resync(width: geo.size.width) }
+            .onChange(of: text) { _, _ in resync(width: geo.size.width) }
+            .onChange(of: textWidth) { _, _ in resync(width: geo.size.width) }
+            .onChange(of: geo.size.width) { _, w in resync(width: w) }
         }
     }
 
-    private var label: some View {
-        Text(text)
-            .font(font)
-            .fontWeight(weight)
-            .lineLimit(1)
+    /// Measures the full (untruncated) text width without affecting layout —
+    /// it lives in a background, so its intrinsic size never reaches the parent.
+    private var widthProbe: some View {
+        lineText
             .fixedSize()
+            .hidden()
             .background(
                 GeometryReader { geo in
                     Color.clear
                         .onAppear { textWidth = geo.size.width }
-                        .onChange(of: geo.size.width) { _, new in textWidth = new }
+                        .onChange(of: geo.size.width) { _, w in textWidth = w }
                 }
             )
     }
 
+    private var lineText: some View {
+        Text(text)
+            .font(font)
+            .fontWeight(weight)
+            .lineLimit(1)
+    }
+
     /// (Re)start the loop for the current text/size. Called on every size or
     /// text change so a new song restarts the scroll from the beginning.
-    private func resync() {
+    private func resync(width: CGFloat) {
         offset = 0
-        guard overflowing else { return }
+        guard textWidth > width + 1 else { return }
         let distance = textWidth + spacing
         withAnimation(.linear(duration: Double(distance) / velocity).repeatForever(autoreverses: false)) {
             offset = -distance
