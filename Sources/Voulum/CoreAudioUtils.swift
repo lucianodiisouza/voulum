@@ -68,6 +68,21 @@ extension AudioObjectID {
         return value as? T
     }
 
+    // MARK: Writing
+
+    /// Writes a single fixed-size value (e.g. set the default output device, a
+    /// device's mute flag, or its scalar volume).
+    func write<T>(_ selector: AudioObjectPropertySelector,
+                  scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+                  element: AudioObjectPropertyElement = kAudioObjectPropertyElementMain,
+                  to value: T) throws {
+        var address = AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: element)
+        var value = value
+        let size = UInt32(MemoryLayout<T>.size)
+        let status = AudioObjectSetPropertyData(self, &address, 0, nil, size, &value)
+        guard status == noErr else { throw CoreAudioError.status(status, selector) }
+    }
+
     // MARK: Existence
 
     func hasProperty(_ selector: AudioObjectPropertySelector,

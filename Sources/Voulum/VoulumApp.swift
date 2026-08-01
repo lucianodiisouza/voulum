@@ -5,14 +5,17 @@ import SwiftUI
 struct VoulumApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var controller = AudioProcessController.shared
+    @StateObject private var system = SystemAudioController.shared
 
     var body: some Scene {
         MenuBarExtra {
             MenuView()
                 .environmentObject(controller)
+                .environmentObject(system)
         } label: {
-            // SF Symbol that reads as "audio sources".
-            Image(systemName: "speaker.wave.2.fill")
+            // Adapts to the current output device (speaker / headphones / TV /
+            // AirPlay), its volume level, and mute state — see `menuBarSymbol`.
+            Image(systemName: system.menuBarSymbol)
         }
         .menuBarExtraStyle(.window)
     }
@@ -36,5 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         AudioProcessController.shared.start()
+        SystemAudioController.shared.start()
     }
 }
