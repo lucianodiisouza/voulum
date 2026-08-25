@@ -89,8 +89,8 @@ final class AudioProcessController: ObservableObject {
         UserDefaults.standard.bool(forKey: "hasGrantedAudioTap")
     private static let permissionKey = "hasGrantedAudioTap"
 
-    /// Range the UI exposes: full mute up to 2x boost.
-    static let maxGain: Float = 2.0
+    /// Range the UI exposes: full mute up to 3x boost.
+    static let maxGain: Float = 3.0
 
     func volume(for process: AudioProcess) -> Float { volumes[process.id] ?? 1.0 }
     func isMuted(_ process: AudioProcess) -> Bool { muted.contains(process.id) }
