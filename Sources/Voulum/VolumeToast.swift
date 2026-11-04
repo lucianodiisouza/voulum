@@ -69,7 +69,7 @@ private struct ToastView: View {
                 HStack {
                     Text(name).font(.callout.weight(.semibold)).lineLimit(1)
                     Spacer(minLength: 12)
-                    Text(muted ? "Muted" : level.percentLabel)
+                    Text(muted ? String(localized: "Muted") : level.percentLabel)
                         .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
                         .foregroundStyle(muted ? Color.red : (level > 1 ? .orange : .secondary))
                 }

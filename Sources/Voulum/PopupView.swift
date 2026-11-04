@@ -181,7 +181,7 @@ struct OutputCard: View {
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(Color.accentColor.gradient))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(device?.name ?? "No output device")
+                        Text(device?.name ?? String(localized: "No output device"))
                             .font(.headline)
                             .lineLimit(1)
                         Text(subtitle)
@@ -198,20 +198,20 @@ struct OutputCard: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(model.devicesExpanded ? "Hide devices" : "Switch output or input device")
+            .help(model.devicesExpanded ? String(localized: "Hide devices") : String(localized: "Switch output or input device"))
 
             if let device {
                 if level.adjustable {
                     HStack(spacing: 6) {
                         IconButton(systemName: level.muted ? "speaker.slash.fill" : "speaker.fill",
-                                   help: level.muted ? "Unmute output" : "Mute output",
+                                   help: level.muted ? String(localized: "Unmute output") : String(localized: "Mute output"),
                                    active: level.muted, tint: .red, size: 22) {
                             devices.toggleMute(device)
                         }
                         VolumeSlider(value: Binding(get: { level.volume },
                                                     set: { devices.setVolume($0, for: device) }),
                                      muted: level.muted, step: prefs.volumeStep.fraction)
-                        Text(level.muted ? "Muted" : level.volume.percentLabel)
+                        Text(level.muted ? String(localized: "Muted") : level.volume.percentLabel)
                             .font(.system(.caption, design: .rounded).weight(.semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 42, alignment: .trailing)
@@ -227,9 +227,9 @@ struct OutputCard: View {
     }
 
     private var subtitle: String {
-        var parts = ["Output"]
+        var parts = [String(localized: "Output")]
         if let device = devices.defaultOutput { parts.append(device.transportLabel) }
-        if let input = devices.defaultInput { parts.append("Mic: \(input.name)") }
+        if let input = devices.defaultInput { parts.append(String(localized: "Mic: \(input.name)")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -257,7 +257,7 @@ struct DeviceList: View {
                 DeviceRowView(device: device, input: model.showingInputs)
             }
             if list.isEmpty {
-                Text(model.showingInputs ? "No microphones" : "No outputs")
+                Text(model.showingInputs ? String(localized: "No microphones") : String(localized: "No outputs"))
                     .font(.caption).foregroundStyle(.secondary).padding(8)
             }
 
@@ -302,7 +302,7 @@ struct DeviceRowView: View {
                                                             : AnyShapeStyle(Color.primary.opacity(0.08))))
                     VStack(alignment: .leading, spacing: 0) {
                         Text(device.name).font(.callout).lineLimit(1)
-                        Text(isDefault ? "In use · \(device.transportLabel)" : device.transportLabel)
+                        Text(isDefault ? String(localized: "In use · \(device.transportLabel)") : device.transportLabel)
                             .font(.caption2)
                             .foregroundStyle(isDefault ? Color.accentColor : .secondary)
                     }
@@ -311,7 +311,7 @@ struct DeviceRowView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(isDefault ? "Current \(input ? "input" : "output")" : "Use \(device.name)")
+            .help(isDefault ? (input ? String(localized: "Current input") : String(localized: "Current output")) : String(localized: "Use \(device.name)"))
 
             if level.adjustable {
                 VolumeSlider(value: Binding(get: { level.volume },

@@ -16,15 +16,15 @@ struct AudioDevice: Identifiable, Hashable {
 
     var transportLabel: String {
         switch transport {
-        case kAudioDeviceTransportTypeBuiltIn: return "Built-in"
+        case kAudioDeviceTransportTypeBuiltIn: return String(localized: "Built-in")
         case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return "Bluetooth"
         case kAudioDeviceTransportTypeUSB: return "USB"
         case kAudioDeviceTransportTypeHDMI: return "HDMI"
         case kAudioDeviceTransportTypeDisplayPort: return "DisplayPort"
         case kAudioDeviceTransportTypeAirPlay: return "AirPlay"
         case kAudioDeviceTransportTypeThunderbolt: return "Thunderbolt"
-        case kAudioDeviceTransportTypeVirtual: return "Virtual"
-        default: return "Audio device"
+        case kAudioDeviceTransportTypeVirtual: return String(localized: "Virtual")
+        default: return String(localized: "Audio device")
         }
     }
 
@@ -319,7 +319,7 @@ final class DeviceController: ObservableObject {
             let hidden: UInt32 = (try? id.read(kAudioDevicePropertyIsHidden, default: UInt32(0))) ?? 0
             guard hidden == 0 else { continue }
 
-            let name: String = (try? id.readCF(kAudioObjectPropertyName, as: String.self) ?? nil) ?? "Unknown Device"
+            let name: String = (try? id.readCF(kAudioObjectPropertyName, as: String.self) ?? nil) ?? String(localized: "Unknown Device")
             result.append(AudioDevice(id: id, uid: uid, name: name, transport: transport,
                                       hasOutput: !outStreams.isEmpty, hasInput: !inStreams.isEmpty))
         }

@@ -30,7 +30,7 @@ struct AppRowView: View {
                                      clipping: meters.hot.contains(app.key))
                 }
                 .buttonStyle(.plain)
-                .help(app.isRunning ? "Show \(app.name)" : "Open \(app.name)")
+                .help(app.isRunning ? String(localized: "Show \(app.name)") : String(localized: "Open \(app.name)"))
 
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 4) {
@@ -48,7 +48,7 @@ struct AppRowView: View {
 
                 if engine.canControlTransport(app) { transport }
 
-                Text(settings.muted ? "Muted" : settings.level.percentLabel)
+                Text(settings.muted ? String(localized: "Muted") : settings.level.percentLabel)
                     .font(.system(.caption, design: .rounded).weight(.semibold).monospacedDigit())
                     .foregroundStyle(settings.level > 1 && !settings.muted ? Color.orange : .secondary)
                     .frame(width: 42, alignment: .trailing)
@@ -112,26 +112,26 @@ struct AppRowView: View {
     }
 
     private var subtitle: (String, Color) {
-        if !app.isRunning { return ("Not running · settings saved", .secondary) }
+        if !app.isRunning { return (String(localized: "Not running · settings saved"), .secondary) }
         if engine.isRouteFallingBack(app) {
-            return ("Chosen output unavailable · using \(devices.defaultOutput?.name ?? "system output")", .orange)
+            return (String(localized: "Chosen output unavailable · using \(devices.defaultOutput?.name ?? String(localized: "system output"))"), .orange)
         }
         var parts: [String] = []
         if let track {
             parts.append(track.subtitle.isEmpty ? app.name : "\(track.subtitle) · \(app.name)")
         } else if engine.pausedAt[app.key] != nil || (!app.isPlaying && prefs.isPinned(app.key)) {
-            parts.append(engine.pausedAt[app.key] != nil ? "Paused" : "Idle")
+            parts.append(engine.pausedAt[app.key] != nil ? String(localized: "Paused") : String(localized: "Idle"))
         }
         let uids = settings.route.deviceUIDs
         if uids.count == 1, let device = devices.output(uid: uids[0]) {
             parts.append("→ \(device.name)")
         } else if uids.count > 1 {
-            parts.append("→ \(uids.count) outputs")
+            parts.append(String(localized: "→ \(uids.count) outputs"))
         }
         if settings.eq.enabled && !settings.eq.isFlat {
-            parts.append("EQ: \(prefs.preset(id: settings.eq.presetID)?.name ?? "Custom")")
+            parts.append(String(localized: "EQ: \(prefs.preset(id: settings.eq.presetID)?.name ?? String(localized: "Custom"))"))
         }
-        if parts.isEmpty { return ("Playing", .green) }
+        if parts.isEmpty { return (String(localized: "Playing"), .green) }
         return (parts.joined(separator: " · "), .secondary)
     }
 
@@ -158,7 +158,7 @@ struct AppRowView: View {
                 IconButton(systemName: "backward.fill", help: "Previous", size: 22) { engine.skip(.previous, app) }
             }
             IconButton(systemName: playing ? "pause.fill" : "play.fill",
-                       help: playing ? "Pause \(app.name)" : "Play \(app.name)", size: 24) {
+                       help: playing ? String(localized: "Pause \(app.name)") : String(localized: "Play \(app.name)"), size: 24) {
                 engine.togglePlayPause(app)
             }
             if engine.canSkipTracks(app) {
@@ -186,7 +186,7 @@ struct AppRowView: View {
     }
 
     @ViewBuilder private var moreMenuItems: some View {
-        Button(app.isRunning ? "Show \(app.name)" : "Open \(app.name)") { app.bringToFront() }
+        Button(app.isRunning ? String(localized: "Show \(app.name)") : String(localized: "Open \(app.name)")) { app.bringToFront() }
         Divider()
         if prefs.isPinned(app.key) {
             Button("Unpin") { engine.setPinned(app, false) }
@@ -204,8 +204,8 @@ struct AppRowView: View {
     private var problem: String? {
         if let error = engine.tapErrors[app.key] {
             return engine.audioPermissionGranted
-                ? "Couldn't take over this app's audio (\(error))."
-                : "Voulum needs permission to adjust app audio."
+                ? String(localized: "Couldn't take over this app's audio (\(error)).")
+                : String(localized: "Voulum needs permission to adjust app audio.")
         }
         return engine.transportErrors[app.key]
     }
@@ -240,8 +240,8 @@ struct RoutePicker: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 4)
 
-            row(symbol: "arrow.triangle.branch", title: "System Output",
-                detail: devices.defaultOutput.map { "Now: \($0.name)" },
+            row(symbol: "arrow.triangle.branch", title: String(localized: "System Output"),
+                detail: devices.defaultOutput.map { String(localized: "Now: \($0.name)") },
                 checked: route == .system, radio: true) {
                 engine.setRoute(.system, for: app)
             }
@@ -255,8 +255,8 @@ struct RoutePicker: View {
             // Chosen devices that are currently disconnected stay listed, so the
             // choice is visible and reversible.
             ForEach(route.deviceUIDs.filter { devices.output(uid: $0) == nil }, id: \.self) { uid in
-                row(symbol: "bolt.horizontal.circle", title: "Disconnected device",
-                    detail: "Returns here when it reconnects", checked: true, radio: false) {
+                row(symbol: "bolt.horizontal.circle", title: String(localized: "Disconnected device"),
+                    detail: String(localized: "Returns here when it reconnects"), checked: true, radio: false) {
                     var uids = route.deviceUIDs
                     uids.removeAll { $0 == uid }
                     engine.setRoute(uids.isEmpty ? .system : .devices(uids), for: app)

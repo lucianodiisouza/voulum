@@ -38,31 +38,41 @@ struct EQPreset: Identifiable, Equatable, Codable {
 
     enum Category: String, Codable, CaseIterable {
         case basic = "Basics", voice = "Voice", music = "Music", listening = "Listening", user = "My Presets"
+
+        var title: String {
+            switch self {
+            case .basic: return String(localized: "Basics")
+            case .voice: return String(localized: "Voice")
+            case .music: return String(localized: "Music")
+            case .listening: return String(localized: "Listening")
+            case .user: return String(localized: "My Presets")
+            }
+        }
     }
 
-    static let flat = EQPreset(id: "flat", name: "Flat", gains: Array(repeating: 0, count: 10), category: .basic)
+    static let flat = EQPreset(id: "flat", name: String(localized: "Flat"), gains: Array(repeating: 0, count: 10), category: .basic)
 
     static let builtIn: [EQPreset] = [
         flat,
-        EQPreset(id: "bass-boost", name: "Bass Boost", gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0], category: .basic),
-        EQPreset(id: "bass-cut", name: "Less Bass", gains: [-6, -5, -4, -2, 0, 0, 0, 0, 0, 0], category: .basic),
-        EQPreset(id: "treble-boost", name: "Treble Boost", gains: [0, 0, 0, 0, 0, 1, 3, 4, 5, 6], category: .basic),
-        EQPreset(id: "treble-cut", name: "Less Treble", gains: [0, 0, 0, 0, 0, -1, -3, -4, -5, -6], category: .basic),
-        EQPreset(id: "voice", name: "Clear Voice", gains: [-3, -2, -1, 1, 3, 4, 4, 3, 1, 0], category: .voice),
-        EQPreset(id: "podcast", name: "Podcast", gains: [-6, -4, -1, 1, 3, 3, 2, 1, 0, -1], category: .voice),
-        EQPreset(id: "calls", name: "Video Calls", gains: [-8, -6, -2, 0, 2, 3, 3, 2, -1, -3], category: .voice),
-        EQPreset(id: "rock", name: "Rock", gains: [4, 3, 2, 0, -1, -1, 1, 2, 3, 4], category: .music),
-        EQPreset(id: "pop", name: "Pop", gains: [-1, 0, 2, 3, 4, 3, 1, 0, 0, -1], category: .music),
-        EQPreset(id: "electronic", name: "Electronic", gains: [5, 4, 1, 0, -2, 1, 0, 1, 4, 5], category: .music),
-        EQPreset(id: "hiphop", name: "Hip-Hop", gains: [5, 4, 1, 3, -1, -1, 1, -1, 2, 3], category: .music),
-        EQPreset(id: "jazz", name: "Jazz", gains: [3, 2, 1, 2, -1, -1, 0, 1, 2, 3], category: .music),
-        EQPreset(id: "classical", name: "Classical", gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 4], category: .music),
-        EQPreset(id: "acoustic", name: "Acoustic", gains: [4, 3, 2, 1, 1, 1, 2, 3, 2, 1], category: .music),
-        EQPreset(id: "loudness", name: "Loudness", gains: [5, 4, 1, 0, -1, 0, 1, 2, 4, 4], category: .listening),
-        EQPreset(id: "late-night", name: "Late Night", gains: [-5, -4, -2, 0, 1, 2, 2, 1, 0, -1], category: .listening),
-        EQPreset(id: "small-speakers", name: "Small Speakers", gains: [-4, 3, 4, 2, 0, 0, 0, 1, 2, 1], category: .listening),
-        EQPreset(id: "warm", name: "Warm", gains: [3, 3, 2, 1, 0, 0, -1, -2, -3, -3], category: .listening),
-        EQPreset(id: "bright", name: "Bright", gains: [-2, -1, 0, 0, 0, 1, 2, 3, 4, 4], category: .listening),
+        EQPreset(id: "bass-boost", name: String(localized: "Bass Boost"), gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0], category: .basic),
+        EQPreset(id: "bass-cut", name: String(localized: "Less Bass"), gains: [-6, -5, -4, -2, 0, 0, 0, 0, 0, 0], category: .basic),
+        EQPreset(id: "treble-boost", name: String(localized: "Treble Boost"), gains: [0, 0, 0, 0, 0, 1, 3, 4, 5, 6], category: .basic),
+        EQPreset(id: "treble-cut", name: String(localized: "Less Treble"), gains: [0, 0, 0, 0, 0, -1, -3, -4, -5, -6], category: .basic),
+        EQPreset(id: "voice", name: String(localized: "Clear Voice"), gains: [-3, -2, -1, 1, 3, 4, 4, 3, 1, 0], category: .voice),
+        EQPreset(id: "podcast", name: String(localized: "Podcast"), gains: [-6, -4, -1, 1, 3, 3, 2, 1, 0, -1], category: .voice),
+        EQPreset(id: "calls", name: String(localized: "Video Calls"), gains: [-8, -6, -2, 0, 2, 3, 3, 2, -1, -3], category: .voice),
+        EQPreset(id: "rock", name: String(localized: "Rock"), gains: [4, 3, 2, 0, -1, -1, 1, 2, 3, 4], category: .music),
+        EQPreset(id: "pop", name: String(localized: "Pop"), gains: [-1, 0, 2, 3, 4, 3, 1, 0, 0, -1], category: .music),
+        EQPreset(id: "electronic", name: String(localized: "Electronic"), gains: [5, 4, 1, 0, -2, 1, 0, 1, 4, 5], category: .music),
+        EQPreset(id: "hiphop", name: String(localized: "Hip-Hop"), gains: [5, 4, 1, 3, -1, -1, 1, -1, 2, 3], category: .music),
+        EQPreset(id: "jazz", name: String(localized: "Jazz"), gains: [3, 2, 1, 2, -1, -1, 0, 1, 2, 3], category: .music),
+        EQPreset(id: "classical", name: String(localized: "Classical"), gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 4], category: .music),
+        EQPreset(id: "acoustic", name: String(localized: "Acoustic"), gains: [4, 3, 2, 1, 1, 1, 2, 3, 2, 1], category: .music),
+        EQPreset(id: "loudness", name: String(localized: "Loudness"), gains: [5, 4, 1, 0, -1, 0, 1, 2, 4, 4], category: .listening),
+        EQPreset(id: "late-night", name: String(localized: "Late Night"), gains: [-5, -4, -2, 0, 1, 2, 2, 1, 0, -1], category: .listening),
+        EQPreset(id: "small-speakers", name: String(localized: "Small Speakers"), gains: [-4, 3, 4, 2, 0, 0, 0, 1, 2, 1], category: .listening),
+        EQPreset(id: "warm", name: String(localized: "Warm"), gains: [3, 3, 2, 1, 0, 0, -1, -2, -3, -3], category: .listening),
+        EQPreset(id: "bright", name: String(localized: "Bright"), gains: [-2, -1, 0, 0, 0, 1, 2, 3, 4, 4], category: .listening),
     ]
 }
 

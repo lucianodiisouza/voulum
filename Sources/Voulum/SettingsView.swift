@@ -5,7 +5,16 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general, apps, devices, shortcuts, equalizer, about
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .general: return String(localized: "General")
+        case .apps: return String(localized: "Apps")
+        case .devices: return String(localized: "Devices")
+        case .shortcuts: return String(localized: "Shortcuts")
+        case .equalizer: return String(localized: "Equalizer")
+        case .about: return String(localized: "About")
+        }
+    }
     var symbol: String {
         switch self {
         case .general: return "gearshape.fill"
@@ -37,26 +46,26 @@ struct SettingsEntry: Identifiable {
     var keywords: String = ""
 
     static let all: [SettingsEntry] = [
-        .init(id: "login", title: "Open at login", tab: .general, keywords: "launch startup start boot"),
-        .init(id: "theme", title: "Popup style", tab: .general, keywords: "appearance liquid glass theme look translucent"),
-        .init(id: "icon", title: "Menu bar icon", tab: .general, keywords: "status item style adaptive speaker waveform dial"),
-        .init(id: "pinned-quiet", title: "Keep pinned apps listed", tab: .general, keywords: "behavior quiet idle"),
-        .init(id: "pause-others", title: "Pause other apps on play", tab: .general, keywords: "behavior transport play pause"),
-        .init(id: "step", title: "Volume step", tab: .general, keywords: "arrow keys scroll wheel increment"),
-        .init(id: "updates", title: "Updates", tab: .general, keywords: "sparkle check version automatic"),
-        .init(id: "onboarding", title: "Show welcome tour", tab: .general, keywords: "onboarding intro tutorial setup"),
-        .init(id: "pinned", title: "Pinned apps", tab: .apps, keywords: "pin keep"),
-        .init(id: "ignored", title: "Ignored apps", tab: .apps, keywords: "ignore hide exclude blacklist"),
-        .init(id: "remembered", title: "Remembered app settings", tab: .apps, keywords: "forget reset volume saved"),
-        .init(id: "auto-switch", title: "Switch to preferred output", tab: .devices, keywords: "automatic connect headphones airpods"),
-        .init(id: "priority", title: "Output priority", tab: .devices, keywords: "order rank hide speakers"),
-        .init(id: "inputs", title: "Input devices", tab: .devices, keywords: "microphone mic"),
-        .init(id: "global", title: "Global shortcuts", tab: .shortcuts, keywords: "hotkey keyboard volume up down mute"),
-        .init(id: "popup-keys", title: "Keys in the popup", tab: .shortcuts, keywords: "keyboard arrows navigation"),
-        .init(id: "automation", title: "Automation (voulum://)", tab: .shortcuts, keywords: "url scheme raycast shortcuts terminal script"),
-        .init(id: "my-presets", title: "My EQ presets", tab: .equalizer, keywords: "equalizer rename delete custom"),
-        .init(id: "builtin-presets", title: "Built-in EQ presets", tab: .equalizer, keywords: "equalizer bass treble vocal"),
-        .init(id: "about", title: "Version & license", tab: .about, keywords: "about github source mit"),
+        .init(id: "login", title: String(localized: "Open at login"), tab: .general, keywords: "launch startup start boot"),
+        .init(id: "theme", title: String(localized: "Popup style"), tab: .general, keywords: "appearance liquid glass theme look translucent"),
+        .init(id: "icon", title: String(localized: "Menu bar icon"), tab: .general, keywords: "status item style adaptive speaker waveform dial"),
+        .init(id: "pinned-quiet", title: String(localized: "Keep pinned apps listed"), tab: .general, keywords: "behavior quiet idle"),
+        .init(id: "pause-others", title: String(localized: "Pause other apps on play"), tab: .general, keywords: "behavior transport play pause"),
+        .init(id: "step", title: String(localized: "Volume step"), tab: .general, keywords: "arrow keys scroll wheel increment"),
+        .init(id: "updates", title: String(localized: "Updates"), tab: .general, keywords: "sparkle check version automatic"),
+        .init(id: "onboarding", title: String(localized: "Show welcome tour"), tab: .general, keywords: "onboarding intro tutorial setup"),
+        .init(id: "pinned", title: String(localized: "Pinned apps"), tab: .apps, keywords: "pin keep"),
+        .init(id: "ignored", title: String(localized: "Ignored apps"), tab: .apps, keywords: "ignore hide exclude blacklist"),
+        .init(id: "remembered", title: String(localized: "Remembered app settings"), tab: .apps, keywords: "forget reset volume saved"),
+        .init(id: "auto-switch", title: String(localized: "Switch to preferred output"), tab: .devices, keywords: "automatic connect headphones airpods"),
+        .init(id: "priority", title: String(localized: "Output priority"), tab: .devices, keywords: "order rank hide speakers"),
+        .init(id: "inputs", title: String(localized: "Input devices"), tab: .devices, keywords: "microphone mic"),
+        .init(id: "global", title: String(localized: "Global shortcuts"), tab: .shortcuts, keywords: "hotkey keyboard volume up down mute"),
+        .init(id: "popup-keys", title: String(localized: "Keys in the popup"), tab: .shortcuts, keywords: "keyboard arrows navigation"),
+        .init(id: "automation", title: String(localized: "Automation (voulum://)"), tab: .shortcuts, keywords: "url scheme raycast shortcuts terminal script"),
+        .init(id: "my-presets", title: String(localized: "My EQ presets"), tab: .equalizer, keywords: "equalizer rename delete custom"),
+        .init(id: "builtin-presets", title: String(localized: "Built-in EQ presets"), tab: .equalizer, keywords: "equalizer bass treble vocal"),
+        .init(id: "about", title: String(localized: "Version & license"), tab: .about, keywords: "about github source mit"),
     ]
 
     static func matching(_ query: String) -> [SettingsEntry] {
@@ -292,8 +301,8 @@ private struct GeneralSettings: View {
                 Text("Appearance")
             } footer: {
                 Text(PopupStyle.glassAvailable
-                     ? "Liquid Glass lets your desktop show through the popup. Light and dark follow your Mac."
-                     : "Liquid Glass needs macOS 26 or later. Light and dark follow your Mac.")
+                     ? String(localized: "Liquid Glass lets your desktop show through the popup. Light and dark follow your Mac.")
+                     : String(localized: "Liquid Glass needs macOS 26 or later. Light and dark follow your Mac."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Menu bar icon") {
@@ -410,9 +419,9 @@ private struct AppsSettings: View {
     }
 
     private func summary(_ s: AppAudioSettings) -> String {
-        var parts: [String] = [s.muted ? "Muted" : s.level.percentLabel]
+        var parts: [String] = [s.muted ? String(localized: "Muted") : s.level.percentLabel]
         if s.eq.enabled && !s.eq.isFlat { parts.append("EQ") }
-        if s.route != .system { parts.append("Custom output") }
+        if s.route != .system { parts.append(String(localized: "Custom output")) }
         return parts.joined(separator: " · ")
     }
 
@@ -489,7 +498,7 @@ private struct DevicesSettings: View {
                     .foregroundStyle(hidden ? Color.secondary : .accentColor)
             }
             .buttonStyle(.plain)
-            .help(hidden ? "Show in popup" : "Hide from popup")
+            .help(hidden ? String(localized: "Show in popup") : String(localized: "Hide from popup"))
         }
     }
 }

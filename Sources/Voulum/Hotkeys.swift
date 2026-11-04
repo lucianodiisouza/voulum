@@ -8,10 +8,10 @@ enum HotkeyAction: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .volumeUp: return "Turn up the app that's playing"
-        case .volumeDown: return "Turn down the app that's playing"
-        case .toggleMute: return "Mute the app that's playing"
-        case .togglePopup: return "Open or close Voulum"
+        case .volumeUp: return String(localized: "Turn up the app that's playing")
+        case .volumeDown: return String(localized: "Turn down the app that's playing")
+        case .toggleMute: return String(localized: "Mute the app that's playing")
+        case .togglePopup: return String(localized: "Open or close Voulum")
         }
     }
     /// Volume keys repeat while held, like the system volume keys.
@@ -58,7 +58,7 @@ struct Hotkey: Codable, Hashable {
         case kVK_DownArrow: return "↓"
         case kVK_LeftArrow: return "←"
         case kVK_RightArrow: return "→"
-        case kVK_Space: return "Space"
+        case kVK_Space: return String(localized: "Space")
         case kVK_Return: return "↩"
         case kVK_Delete: return "⌫"
         case kVK_Escape: return "⎋"
@@ -156,7 +156,7 @@ struct ShortcutRecorder: View {
             Button {
                 recording ? stop() : start()
             } label: {
-                Text(recording ? "Type shortcut…" : (hotkey?.display ?? "Record Shortcut"))
+                Text(recording ? String(localized: "Type shortcut…") : (hotkey?.display ?? String(localized: "Record Shortcut")))
                     .font(.system(.body, design: .rounded).monospacedDigit())
                     .foregroundStyle(recording ? Color.accentColor : (hotkey == nil ? .secondary : .primary))
                     .frame(minWidth: 120)

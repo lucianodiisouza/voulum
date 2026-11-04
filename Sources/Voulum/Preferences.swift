@@ -55,10 +55,10 @@ enum MenuBarIconStyle: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .adaptive: return "Adaptive"
-        case .speaker: return "Speaker"
-        case .waveform: return "Waveform"
-        case .dial: return "Dial"
+        case .adaptive: return String(localized: "Adaptive")
+        case .speaker: return String(localized: "Speaker")
+        case .waveform: return String(localized: "Waveform")
+        case .dial: return String(localized: "Dial")
         }
     }
 }
@@ -74,8 +74,8 @@ enum PopupStyle: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .standard: return "Frosted"
-        case .glass: return "Liquid Glass"
+        case .standard: return String(localized: "Frosted")
+        case .glass: return String(localized: "Liquid Glass")
         }
     }
     static var glassAvailable: Bool {
@@ -92,9 +92,9 @@ enum VolumeStep: Int, CaseIterable, Codable, Identifiable {
     var fraction: Float { Float(rawValue) / 100 }
     var title: String {
         switch self {
-        case .fine: return "Fine (2%)"
-        case .normal: return "Normal (5%)"
-        case .coarse: return "Coarse (10%)"
+        case .fine: return String(localized: "Fine (2%)")
+        case .normal: return String(localized: "Normal (5%)")
+        case .coarse: return String(localized: "Coarse (10%)")
         }
     }
 }

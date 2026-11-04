@@ -64,19 +64,19 @@ struct EQPanel: View {
 
     private var presetName: String {
         if let preset = prefs.preset(id: eq.presetID) { return preset.name }
-        return eq.isFlat ? EQPreset.flat.name : "Custom"
+        return eq.isFlat ? EQPreset.flat.name : String(localized: "Custom")
     }
 
     @ViewBuilder private var presetMenuItems: some View {
         ForEach(EQPreset.Category.allCases.filter { $0 != .user }, id: \.self) { category in
-            Section(category.rawValue) {
+            Section(category.title) {
                 ForEach(EQPreset.builtIn.filter { $0.category == category }) { preset in
                     presetButton(preset)
                 }
             }
         }
         if !prefs.userPresets.isEmpty {
-            Section(EQPreset.Category.user.rawValue) {
+            Section(EQPreset.Category.user.title) {
                 ForEach(prefs.userPresets) { presetButton($0) }
             }
         }

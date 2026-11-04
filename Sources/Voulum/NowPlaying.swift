@@ -70,13 +70,13 @@ enum NowPlayingService {
         var hint: String {
             switch self {
             case .automationDenied:
-                return "Allow Voulum to control this app in System Settings ▸ Privacy & Security ▸ Automation."
+                return String(localized: "Allow Voulum to control this app in System Settings ▸ Privacy & Security ▸ Automation.")
             case .javaScriptDisabled(let instruction):
                 return instruction
             case .failed:
-                return "Couldn't reach this app's playback controls."
+                return String(localized: "Couldn't reach this app's playback controls.")
             case .unreachableMedia:
-                return "This is playing inside an embedded player Voulum can't control. Mute and the volume slider still work on it."
+                return String(localized: "This is playing inside an embedded player Voulum can't control. Mute and the volume slider still work on it.")
             }
         }
     }
@@ -380,7 +380,7 @@ enum NowPlayingService {
                next: nil,
                previous: nil,
                // Path lifted from Chromium's own error string for this case.
-               javaScriptHint: "Turn on “Allow JavaScript from Apple Events” in \(appName): View ▸ Developer.",
+               javaScriptHint: String(localized: "Turn on “Allow JavaScript from Apple Events” in \(appName): View ▸ Developer."),
                countsAffected: true,
                tabs: .chromium(appName))
     }
@@ -394,7 +394,7 @@ enum NowPlayingService {
                previous: nil,
                // The Develop menu is itself hidden until switched on, so that
                // step has to be part of the instruction.
-               javaScriptHint: "Turn on “Allow JavaScript from Apple Events” in \(appName): Settings ▸ Advanced ▸ Show features for web developers, then the Develop menu.",
+               javaScriptHint: String(localized: "Turn on “Allow JavaScript from Apple Events” in \(appName): Settings ▸ Advanced ▸ Show features for web developers, then the Develop menu."),
                countsAffected: true,
                tabs: .safari(appName))
     }
