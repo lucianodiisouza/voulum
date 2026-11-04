@@ -4,16 +4,19 @@ import Combine
 import CoreAudio
 import SwiftUI
 
-/// Owns the menu-bar item and its popover: the icon (which tracks the output
-/// device and volume), opening/closing, and keyboard control of the popup.
+/// Owns the menu-bar item and its popup panel: the icon (which tracks the
+/// output device and volume), opening/closing, and keyboard control of the popup.
 @MainActor
-final class StatusItemController: NSObject, NSPopoverDelegate {
+final class StatusItemController: NSObject {
 
     static let shared = StatusItemController()
 
     private var statusItem: NSStatusItem!
-    private let popover = NSPopover()
+    private var panel: PopupPanel!
+    private var host: NSHostingController<AnyView>!
     private var keyMonitor: Any?
+    private var clickMonitors: [Any] = []
+    private var isOpen = false
     private var cancellables: Set<AnyCancellable> = []
     private var flashUntil: Date?
     private var flashSymbol: String?
@@ -39,12 +42,20 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             .environmentObject(prefs)
             .environmentObject(engine.meters)
             .environmentObject(model)
-        let host = NSHostingController(rootView: root)
+        host = NSHostingController(rootView: AnyView(root))
         host.sizingOptions = .preferredContentSize
-        popover.contentViewController = host
-        popover.behavior = .transient
-        popover.animates = true
-        popover.delegate = self
+        panel = PopupPanel(content: host)
+
+        // Follow the content's height (devices expanding, apps coming and
+        // going), keeping the top edge pinned under the icon.
+        host.publisher(for: \.preferredContentSize)
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.reposition() }
+            .store(in: &cancellables)
+        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+            .sink { [weak self] _ in self?.close() }
+            .store(in: &cancellables)
 
         Publishers.CombineLatest4(devices.$outputLevels, devices.$defaultOutputID, devices.$outputs, prefs.$iconStyle)
             .receive(on: RunLoop.main)
@@ -63,34 +74,84 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     func toggle() {
-        popover.isShown ? close() : open()
+        isOpen ? close() : open()
     }
 
     func open() {
-        guard let button = statusItem.button, !popover.isShown else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
-    }
-
-    func close() {
-        popover.performClose(nil)
-    }
-
-    func popoverWillShow(_ notification: Notification) {
+        guard let button = statusItem.button, !isOpen else { return }
+        isOpen = true
         engine.beginLiveUpdates()
         devices.refresh()
         if model.focusedKey.map({ key in !engine.visibleApps.contains { $0.key == key } }) ?? false {
             model.focusedKey = nil
         }
+        button.highlight(true)
+        reposition()
+        panel.alphaValue = 0
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.14
+            panel.animator().alphaValue = 1
+        }
         installKeyMonitor()
+        installClickMonitors()
     }
 
-    func popoverDidClose(_ notification: Notification) {
+    func close() {
+        guard isOpen else { return }
+        isOpen = false
+        statusItem.button?.highlight(false)
+        removeMonitors()
         engine.endLiveUpdates()
+        Preferences.shared.saveNow()
+        let panel = panel!
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.12
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            // A quick reopen may have happened during the fade.
+            if self?.isOpen == false { panel.orderOut(nil) }
+            panel.alphaValue = 1
+        })
+    }
+
+    private func reposition() {
+        guard let button = statusItem?.button, let host else { return }
+        var size = host.preferredContentSize
+        if size.width < 1 || size.height < 1 { size = host.view.fittingSize }
+        panel.position(below: button, size: size)
+    }
+
+    /// Any click outside the popup closes it — in another app (global monitor)
+    /// or in one of our other windows, like Settings (local monitor). Clicks on
+    /// the icon are left to its own toggle, and clicks in the route picker's
+    /// popover belong to the popup.
+    private func installClickMonitors() {
+        let mask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
+            Task { @MainActor in self?.close() }
+        }) {
+            clickMonitors.append(global)
+        }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            guard let self, let window = event.window else { return event }
+            let ours = window === self.panel
+                || window === self.statusItem.button?.window
+                || window.parent === self.panel
+                || NSStringFromClass(type(of: window)).contains("Popover")
+            if !ours { self.close() }
+            return event
+        }) {
+            clickMonitors.append(local)
+        }
+    }
+
+    private func removeMonitors() {
+        clickMonitors.forEach(NSEvent.removeMonitor)
+        clickMonitors.removeAll()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
-        Preferences.shared.saveNow()
     }
 
     // MARK: Keyboard
@@ -98,8 +159,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private func installKeyMonitor() {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.popover.isShown,
-                  event.window === self.popover.contentViewController?.view.window else { return event }
+            guard let self, self.isOpen, event.window === self.panel else { return event }
             // Let text fields (saving an EQ preset) have their keys.
             if event.window?.firstResponder is NSText { return event }
             return self.handleKey(event) ? nil : event
