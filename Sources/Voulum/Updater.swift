@@ -4,35 +4,46 @@ import SwiftUI
 /// Owns Sparkle's updater and exposes just enough of it to SwiftUI.
 ///
 /// Sparkle drives the whole update loop itself (background checks, the "new
-/// version available" prompt, download, verify, replace-and-relaunch). We only
-/// need to (a) start it and (b) publish `canCheckForUpdates` so the menu's
-/// "Check for Updates…" item can disable itself while a check is already
-/// running.
+/// version available" prompt, download, verify, replace-and-relaunch). Updates
+/// are verified with an EdDSA signature (`SUPublicEDKey` in Info.plist) on top
+/// of Developer ID signing — see docs/UPDATES.md.
 ///
-/// Updates are verified with an EdDSA (Ed25519) signature — see `SUPublicEDKey`
-/// in Info.plist — which is independent of Apple code signing, so it works even
-/// though Voulum ships unsigned. The feed and signing are documented in
-/// docs/UPDATES.md.
+/// Until a real public key is in Info.plist the updater stays dormant: starting
+/// Sparkle with the placeholder would greet every user with an "updater failed
+/// to start" alert.
 @MainActor
 final class Updater: ObservableObject {
-    @Published var canCheckForUpdates = false
+    @Published private(set) var canCheckForUpdates = false
 
+    let isConfigured: Bool
     private let controller: SPUStandardUpdaterController
 
     init() {
-        // startingUpdater: true kicks off the background scheduler immediately,
-        // honoring SUEnableAutomaticChecks / SUScheduledCheckInterval.
+        let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
+        isConfigured = !key.isEmpty && !key.hasPrefix("REPLACE")
         controller = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: isConfigured,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
-        controller.updater.publisher(for: \.canCheckForUpdates)
-            .assign(to: &$canCheckForUpdates)
+        if isConfigured {
+            controller.updater.publisher(for: \.canCheckForUpdates)
+                .assign(to: &$canCheckForUpdates)
+        }
     }
 
-    /// Manual check, triggered from the menu. Shows Sparkle's own UI.
+    var automaticallyChecks: Bool {
+        get { controller.updater.automaticallyChecksForUpdates }
+        set {
+            objectWillChange.send()
+            controller.updater.automaticallyChecksForUpdates = newValue
+        }
+    }
+
+    /// Manual check. Shows Sparkle's own UI.
     func checkForUpdates() {
+        guard isConfigured else { return }
+        NSApp.activate(ignoringOtherApps: true)
         controller.updater.checkForUpdates()
     }
 }
