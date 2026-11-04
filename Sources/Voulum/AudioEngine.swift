@@ -154,7 +154,6 @@ final class AudioEngine: ObservableObject {
         log.info("Voulum starting")
         halQueue.async {
             AppTap.reapLeakedDevices()
-            ProcessTap.reapLeakedDevices()
         }
         processListToken = AudioObjectID.system.listen(
             to: [kAudioHardwarePropertyProcessObjectList], queue: halQueue) { [weak self] _, _ in

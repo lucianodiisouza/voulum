@@ -313,8 +313,7 @@ final class DeviceController: ObservableObject {
             let uid: String = (try? id.readCF(kAudioDevicePropertyDeviceUID, as: String.self) ?? nil) ?? ""
             guard !uid.isEmpty,
                   transport != kAudioDeviceTransportTypeAggregate,
-                  !uid.hasPrefix(AppTap.aggregateUIDPrefix),
-                  !uid.hasPrefix(ProcessTap.aggregateUIDPrefix) else { continue }
+                  !uid.hasPrefix(AppTap.aggregateUIDPrefix) else { continue }
             // Hidden helper devices (e.g. the CADefaultDeviceAggregate) aren't
             // meant for users.
             let hidden: UInt32 = (try? id.read(kAudioDevicePropertyIsHidden, default: UInt32(0))) ?? 0

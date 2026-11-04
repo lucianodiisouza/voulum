@@ -416,3 +416,15 @@ final class AppTap: @unchecked Sendable {
         }
     }
 }
+
+enum TapError: Error, CustomStringConvertible {
+    case create(String, OSStatus)
+    case setup(String)
+
+    var description: String {
+        switch self {
+        case let .create(call, status): return "\(call) failed (\(status))"
+        case let .setup(message): return message
+        }
+    }
+}
