@@ -565,9 +565,9 @@ private struct LookStep: View {
         VStack(spacing: 22) {
             Spacer(minLength: 30)
             HStack(spacing: 16) {
+                card(.desk)
                 card(.standard)
                 card(.glass)
-                card(.desk)
             }
             .frame(height: 170)
             StepText(title: "Pick a look",
