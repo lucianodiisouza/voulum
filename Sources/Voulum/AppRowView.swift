@@ -115,8 +115,10 @@ struct AppRowView: View {
         .padding(.vertical, 7)
         .background(RowBackground(highlighted: focused || hovering || eqOpen))
         .overlay(
+            // Inside the row's edge: a centred stroke loses its outer half
+            // where the scroll view clips the first row.
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke((desk ? Color.deskAmber : Color.accentColor).opacity(focused ? 0.55 : 0), lineWidth: 1.5)
+                .strokeBorder((desk ? Color.deskAmber : Color.accentColor).opacity(focused ? 0.55 : 0), lineWidth: 1.5)
         )
         .onHover { hovering = $0 }
         .contextMenu { moreMenuItems }
