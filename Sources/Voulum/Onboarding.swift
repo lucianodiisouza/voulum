@@ -171,6 +171,8 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+        // Keeps the app list and level meters fresh for the tour.
+        AudioEngine.shared.beginLiveUpdates()
     }
 
     private func finish() {
@@ -191,6 +193,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         model?.probe.stop()
         model = nil
+        AudioEngine.shared.endLiveUpdates()
         UserDefaults.standard.set(true, forKey: Self.completedKey)
         Preferences.shared.saveNow()
         NSApp.setActivationPolicy(.accessory)
@@ -208,6 +211,13 @@ final class OnboardingModel: ObservableObject {
     @Published var step: Step = .hello
     @Published var access: Access = .unknown
     let probe = AudioPermissionProbe()
+
+    /// What the visualizer follows: everything the Mac plays, through the
+    /// probe, plus the apps Voulum is already adjusting. Those are muted at
+    /// the source and replayed by Voulum, so the probe's tap can miss them.
+    var liveLevel: Float {
+        max(probe.level, AudioEngine.shared.meters.levels.values.max() ?? 0)
+    }
 
     /// How hard the visualizer moves when it has no real audio to follow.
     var idleEnergy: Double {
@@ -243,7 +253,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            AudioStage(probe: model.probe, idleEnergy: model.idleEnergy, live: model.access == .granted)
+            AudioStage(level: { model.liveLevel }, idleEnergy: model.idleEnergy, live: model.access == .granted)
 
             VStack(spacing: 0) {
                 progress
@@ -290,7 +300,7 @@ struct OnboardingView: View {
 /// and a spectrum along the bottom that idles gently and, once Voulum can
 /// hear the Mac, dances to whatever is actually playing.
 private struct AudioStage: View {
-    let probe: AudioPermissionProbe
+    let level: () -> Float
     let idleEnergy: Double
     let live: Bool
 
@@ -312,7 +322,7 @@ private struct AudioStage: View {
         guard live else { return idleEnergy }
         // A floor keeps it alive between songs; the gain makes ordinary
         // listening levels fill the stage.
-        return max(0.15, min(1, Double(probe.level) * 1.6))
+        return max(0.15, min(1, Double(level()) * 1.6))
     }
 
     private func drawAurora(_ context: inout GraphicsContext, size: CGSize, t: Double) {
