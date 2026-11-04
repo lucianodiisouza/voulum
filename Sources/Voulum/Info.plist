@@ -35,14 +35,14 @@
 	<string>Voulum asks media apps and browsers what's playing so it can show the title and play or pause them.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voulum picks up app audio so it can set each app's volume.</string>
-	<!-- Sparkle auto-update. SUPublicEDKey must be filled in before updates
-	     will verify (see docs/UPDATES.md). Interval is 24h. -->
+	<!-- Sparkle auto-update. SUPublicEDKey verifies every update; its
+	     private half lives in the login keychain (see docs/UPDATES.md). -->
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/lucianodiisouza/voulum/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY</string>
+	<string>AHjs14q8ghu3og63BEFxU5uOlOYTcb7GDOSI7+R6j9s=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<!-- voulum:// automation links (see URLCommands.swift). -->

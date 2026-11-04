@@ -39,8 +39,10 @@ mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
 ```
 
 - Copy the printed **public** key into `SUPublicEDKey` in
-  [`Sources/Voulum/Info.plist`](../Sources/Voulum/Info.plist), replacing
-  `REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY`.
+  [`Sources/Voulum/Info.plist`](../Sources/Voulum/Info.plist). This is done:
+  the key there now is `AHjs14q8…j9s=`. Only replace it if you rotate keys, and
+  remember that installed copies only trust updates signed with the key they
+  shipped with.
 - Export the **private** key for CI:
 
   ```bash
