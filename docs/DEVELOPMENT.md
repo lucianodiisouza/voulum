@@ -97,9 +97,10 @@ Releases are automated with **Conventional Commits** + **release-please**.
 check.
 
 > The released app is ad-hoc signed but **not notarized** — users clear the
-> quarantine flag to run it (see the main README). Wiring in Developer ID
-> signing + notarization is a future step; add the secrets and a signing step to
-> `release-build.yml`.
+> quarantine flag to run it (see the main README). To enable Developer ID
+> signing + notarization (so users skip that step), add the Apple secrets
+> described in [docs/SIGNING.md](SIGNING.md); the workflow turns it on
+> automatically and falls back to ad-hoc when they're absent.
 
 ## Roadmap
 
