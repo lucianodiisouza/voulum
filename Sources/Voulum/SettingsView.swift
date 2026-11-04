@@ -691,7 +691,11 @@ private struct AboutSettings: View {
             Text("Per-app volume, routing and EQ for macOS.\nFree and open source under the MIT license.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-            Link("github.com/lucianodiisouza/voulum", destination: URL(string: "https://github.com/lucianodiisouza/voulum")!)
+            // The site, in Portuguese when Voulum is showing Portuguese.
+            Link(destination: URL(string: Bundle.main.preferredLocalizations.first?.hasPrefix("pt") == true
+                                  ? "https://audio.oprimo.dev/pt-br/" : "https://audio.oprimo.dev/")!) {
+                Text(verbatim: "audio.oprimo.dev")
+            }
             Button("Watch the Welcome Tour") { OnboardingWindowController.shared.show() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
