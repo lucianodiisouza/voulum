@@ -95,7 +95,7 @@ enum URLCommands {
         case "toggle":
             StatusItemController.shared.toggle()
         case "settings":
-            SettingsWindowController.shared.show()
+            SettingsWindowController.shared.show(tab: query["tab"].flatMap { SettingsTab(rawValue: $0.lowercased()) })
         default:
             fail(url, "unknown command")
         }

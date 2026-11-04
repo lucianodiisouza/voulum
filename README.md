@@ -104,6 +104,7 @@ xattr -dr com.apple.quarantine /Applications/Voulum.app
 | `voulum://output?device=AirPods` | switch the system output |
 | `voulum://output-volume?level=30` | system output volume |
 | `voulum://open` · `close` · `toggle` · `settings` | the popup and Settings window |
+| `voulum://settings?tab=equalizer` | a Settings tab (`general`, `apps`, `devices`, `shortcuts`, `equalizer`, `about`) |
 
 `app=` accepts an app name or bundle id. Leave it out to target the app that's
 playing.
