@@ -7,12 +7,63 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var title: String { rawValue.capitalized }
     var symbol: String {
         switch self {
-        case .general: return "gearshape"
-        case .apps: return "square.grid.2x2"
-        case .devices: return "hifispeaker.2"
-        case .shortcuts: return "keyboard"
+        case .general: return "gearshape.fill"
+        case .apps: return "square.grid.2x2.fill"
+        case .devices: return "hifispeaker.2.fill"
+        case .shortcuts: return "command"
         case .equalizer: return "slider.vertical.3"
-        case .about: return "info.circle"
+        case .about: return "info"
+        }
+    }
+    /// Sidebar tile colour, System Settings style.
+    var tint: Color {
+        switch self {
+        case .general: return .gray
+        case .apps: return .blue
+        case .devices: return .orange
+        case .shortcuts: return .purple
+        case .equalizer: return .pink
+        case .about: return .teal
+        }
+    }
+}
+
+/// One searchable setting: where it lives and the words people might type.
+struct SettingsEntry: Identifiable {
+    let id: String
+    let title: String
+    let tab: SettingsTab
+    var keywords: String = ""
+
+    static let all: [SettingsEntry] = [
+        .init(id: "login", title: "Open at login", tab: .general, keywords: "launch startup start boot"),
+        .init(id: "theme", title: "Popup style", tab: .general, keywords: "appearance liquid glass theme look translucent"),
+        .init(id: "icon", title: "Menu bar icon", tab: .general, keywords: "status item style adaptive speaker waveform dial"),
+        .init(id: "pinned-quiet", title: "Keep pinned apps listed", tab: .general, keywords: "behaviour quiet idle"),
+        .init(id: "pause-others", title: "Pause other apps on play", tab: .general, keywords: "behaviour transport play pause"),
+        .init(id: "step", title: "Volume step", tab: .general, keywords: "arrow keys scroll wheel increment"),
+        .init(id: "updates", title: "Updates", tab: .general, keywords: "sparkle check version automatic"),
+        .init(id: "onboarding", title: "Show welcome tour", tab: .general, keywords: "onboarding intro tutorial setup"),
+        .init(id: "pinned", title: "Pinned apps", tab: .apps, keywords: "pin keep"),
+        .init(id: "ignored", title: "Ignored apps", tab: .apps, keywords: "ignore hide exclude blacklist"),
+        .init(id: "remembered", title: "Remembered app settings", tab: .apps, keywords: "forget reset volume saved"),
+        .init(id: "auto-switch", title: "Switch to preferred output", tab: .devices, keywords: "automatic connect headphones airpods"),
+        .init(id: "priority", title: "Output priority", tab: .devices, keywords: "order rank hide speakers"),
+        .init(id: "inputs", title: "Input devices", tab: .devices, keywords: "microphone mic"),
+        .init(id: "global", title: "Global shortcuts", tab: .shortcuts, keywords: "hotkey keyboard volume up down mute"),
+        .init(id: "popup-keys", title: "Keys in the popup", tab: .shortcuts, keywords: "keyboard arrows navigation"),
+        .init(id: "automation", title: "Automation (voulum://)", tab: .shortcuts, keywords: "url scheme raycast shortcuts terminal script"),
+        .init(id: "my-presets", title: "My EQ presets", tab: .equalizer, keywords: "equalizer rename delete custom"),
+        .init(id: "builtin-presets", title: "Built-in EQ presets", tab: .equalizer, keywords: "equalizer bass treble vocal"),
+        .init(id: "about", title: "Version & license", tab: .about, keywords: "about github source mit"),
+    ]
+
+    static func matching(_ query: String) -> [SettingsEntry] {
+        let words = query.lowercased().split(separator: " ")
+        guard !words.isEmpty else { return [] }
+        return all.filter { entry in
+            let haystack = "\(entry.title) \(entry.tab.title) \(entry.keywords)".lowercased()
+            return words.allSatisfy { haystack.contains($0) }
         }
     }
 }
@@ -35,13 +86,20 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 .environmentObject(DeviceController.shared)
                 .environmentObject(AppDelegate.updater)
             let host = NSHostingController(rootView: root)
+            host.sceneBridgingOptions = [.toolbars, .title]
             let window = NSWindow(contentViewController: host)
             window.title = "Voulum Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
-            window.setContentSize(NSSize(width: 620, height: 500))
+            // Full-height translucent sidebar under a unified toolbar.
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            window.toolbar = NSToolbar(identifier: "settings")
+            window.toolbarStyle = .unified
+            window.titlebarAppearsTransparent = true
+            window.setContentSize(NSSize(width: 780, height: 540))
+            window.contentMinSize = NSSize(width: 680, height: 440)
             window.isReleasedWhenClosed = false
+            window.setFrameAutosaveName("VoulumSettings")
             window.delegate = self
-            window.center()
+            if !window.setFrameUsingName("VoulumSettings") { window.center() }
             self.window = window
         }
         // A menu-bar app has no Dock icon; show one while Settings is open so
@@ -59,23 +117,150 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
 final class SettingsSelection: ObservableObject {
     @Published var tab: SettingsTab = .general
+    /// The setting a search result pointed at; flashes, then clears.
+    @Published var highlight: String?
+
+    @MainActor func reveal(_ entry: SettingsEntry) {
+        tab = entry.tab
+        highlight = entry.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { [weak self] in
+            if self?.highlight == entry.id { self?.highlight = nil }
+        }
+    }
 }
 
 struct SettingsView: View {
     @EnvironmentObject private var selection: SettingsSelection
+    @State private var query = ""
 
     var body: some View {
-        TabView(selection: $selection.tab) {
-            GeneralSettings().tabItem { Label("General", systemImage: SettingsTab.general.symbol) }.tag(SettingsTab.general)
-            AppsSettings().tabItem { Label("Apps", systemImage: SettingsTab.apps.symbol) }.tag(SettingsTab.apps)
-            DevicesSettings().tabItem { Label("Devices", systemImage: SettingsTab.devices.symbol) }.tag(SettingsTab.devices)
-            ShortcutsSettings().tabItem { Label("Shortcuts", systemImage: SettingsTab.shortcuts.symbol) }.tag(SettingsTab.shortcuts)
-            EqualizerSettings().tabItem { Label("Equalizer", systemImage: SettingsTab.equalizer.symbol) }.tag(SettingsTab.equalizer)
-            AboutSettings().tabItem { Label("About", systemImage: SettingsTab.about.symbol) }.tag(SettingsTab.about)
+        NavigationSplitView {
+            sidebar
+                .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+        } detail: {
+            ScrollViewReader { proxy in
+                page
+                    .navigationTitle(selection.tab.title)
+                    .onChange(of: selection.highlight) { _, id in
+                        guard let id else { return }
+                        // Let the page switch first.
+                        DispatchQueue.main.async {
+                            withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(id, anchor: .center) }
+                        }
+                    }
+            }
         }
-        .padding(20)
-        .frame(width: 620, height: 500)
+        .searchable(text: $query, placement: .sidebar, prompt: "Search")
+        .frame(minWidth: 680, minHeight: 440)
     }
+
+    private var sidebar: some View {
+        List(selection: Binding<SettingsTab?>(get: { selection.tab },
+                                              set: { if let t = $0 { selection.tab = t } })) {
+            if query.isEmpty {
+                ForEach(SettingsTab.allCases) { tab in
+                    SidebarLabel(title: tab.title, symbol: tab.symbol, tint: tab.tint).tag(tab)
+                }
+            } else {
+                let results = SettingsEntry.matching(query)
+                if results.isEmpty {
+                    Text("No results").foregroundStyle(.secondary)
+                }
+                ForEach(results) { entry in
+                    Button {
+                        selection.reveal(entry)
+                    } label: {
+                        HStack(spacing: 8) {
+                            SettingsIconTile(symbol: entry.tab.symbol, tint: entry.tab.tint, size: 18)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(entry.title).lineLimit(1)
+                                Text(entry.tab.title).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom) { sidebarFooter }
+    }
+
+    private var sidebarFooter: some View {
+        HStack(spacing: 8) {
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 22, height: 22)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Voulum").font(.caption.weight(.semibold))
+                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder private var page: some View {
+        switch selection.tab {
+        case .general: GeneralSettings()
+        case .apps: AppsSettings()
+        case .devices: DevicesSettings()
+        case .shortcuts: ShortcutsSettings()
+        case .equalizer: EqualizerSettings()
+        case .about: AboutSettings()
+        }
+    }
+}
+
+/// White glyph on a coloured rounded square, like System Settings.
+struct SettingsIconTile: View {
+    let symbol: String
+    let tint: Color
+    var size: CGFloat = 20
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.55, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.27, style: .continuous).fill(tint.gradient))
+    }
+}
+
+private struct SidebarLabel: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            SettingsIconTile(symbol: symbol, tint: tint)
+        }
+    }
+}
+
+/// Marks a row a search result can jump to, and flashes it when it does.
+private struct SettingsAnchor: ViewModifier {
+    let id: String
+    @EnvironmentObject private var selection: SettingsSelection
+
+    func body(content: Content) -> some View {
+        content
+            .id(id)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.accentColor.opacity(selection.highlight == id ? 0.22 : 0))
+                    .padding(-5)
+                    .animation(.easeInOut(duration: 0.3), value: selection.highlight)
+            )
+    }
+}
+
+extension View {
+    fileprivate func settingsAnchor(_ id: String) -> some View { modifier(SettingsAnchor(id: id)) }
 }
 
 // MARK: - General
@@ -90,6 +275,7 @@ private struct GeneralSettings: View {
             Section {
                 Toggle("Open Voulum when you log in", isOn: Binding(
                     get: { launchAtLogin }, set: { launchAtLogin = LoginItem.setEnabled($0) }))
+                    .settingsAnchor("login")
             }
             Section("Menu bar icon") {
                 Picker("Style", selection: $prefs.iconStyle) {
@@ -103,15 +289,19 @@ private struct GeneralSettings: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+                .settingsAnchor("icon")
                 Text("Adaptive shows the kind of device you're listening on. Every style turns into a slashed speaker when the output is muted.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Behaviour") {
                 Toggle("Keep pinned apps in the list when they're quiet", isOn: $prefs.showInactivePinned)
+                    .settingsAnchor("pinned-quiet")
                 Toggle("Pressing play in Voulum pauses other apps", isOn: $prefs.pauseOthersOnPlay)
+                    .settingsAnchor("pause-others")
                 Picker("Volume step", selection: $prefs.volumeStep) {
                     ForEach(VolumeStep.allCases) { Text($0.title).tag($0) }
                 }
+                .settingsAnchor("step")
                 Text("Used by the arrow keys, the scroll wheel and the volume shortcuts.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -119,6 +309,7 @@ private struct GeneralSettings: View {
                 Section("Updates") {
                     Toggle("Check for updates automatically", isOn: Binding(
                         get: { updater.automaticallyChecks }, set: { updater.automaticallyChecks = $0 }))
+                        .settingsAnchor("updates")
                     Button("Check for Updates Now") { updater.checkForUpdates() }
                         .disabled(!updater.canCheckForUpdates)
                 }
@@ -147,7 +338,7 @@ private struct AppsSettings: View {
                         Button("Unpin") { prefs.setPinned(app, false) }
                     }
                 }
-            } header: { Text("Pinned apps") }
+            } header: { Text("Pinned apps").settingsAnchor("pinned") }
 
             Section {
                 if prefs.ignored.isEmpty {
@@ -162,7 +353,7 @@ private struct AppsSettings: View {
                         }
                     }
                 }
-            } header: { Text("Ignored apps") }
+            } header: { Text("Ignored apps").settingsAnchor("ignored") }
 
             Section {
                 let keys = prefs.apps.keys.sorted()
@@ -181,7 +372,7 @@ private struct AppsSettings: View {
                         }
                     }
                 }
-            } header: { Text("Remembered settings") }
+            } header: { Text("Remembered settings").settingsAnchor("remembered") }
         }
         .formStyle(.grouped)
     }
@@ -224,6 +415,7 @@ private struct DevicesSettings: View {
         Form {
             Section {
                 Toggle("Switch to a higher-ranked output as soon as it connects", isOn: $prefs.autoSwitchToPreferred)
+                    .settingsAnchor("auto-switch")
                 List {
                     ForEach(rankedOutputs, id: \.uid) { device in
                         deviceRow(device, rank: (rankedOutputs.firstIndex(of: device) ?? 0) + 1)
@@ -238,17 +430,17 @@ private struct DevicesSettings: View {
                 }
                 .frame(minHeight: 150)
             } header: {
-                Text("Output priority")
+                Text("Output priority").settingsAnchor("priority")
             } footer: {
                 Text("Drag to rank. The eye hides a device from the popup (the device you're using always shows).")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Inputs") {
+            Section {
                 ForEach(devices.inputs) { device in
                     deviceRow(device, rank: nil)
                 }
-            }
+            } header: { Text("Inputs").settingsAnchor("inputs") }
         }
         .formStyle(.grouped)
     }
@@ -295,26 +487,75 @@ private struct ShortcutsSettings: View {
                     }
                 }
             } header: {
-                Text("Global shortcuts")
+                Text("Global shortcuts").settingsAnchor("global")
             } footer: {
                 Text("“The app that's playing” is whichever app is making sound — so turning down a video in a background tab works while you type elsewhere. Hold the volume keys to keep going; turning up a muted app unmutes it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("In the popup") {
-                Text("↑ ↓ choose an app · ← → volume (⇧ for bigger steps) · M mute · E equalizer · Space play/pause · Return show app · 0 reset to 100% · Tab devices · Esc close")
-                    .font(.callout)
-            }
-
-            Section("Automation") {
-                Text("Control Voulum from Shortcuts, Raycast or Terminal with voulum:// links, e.g.")
-                    .font(.callout)
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(URLCommands.examples, id: \.self) { Text($0).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
+            Section {
+                ForEach(Self.popupKeys, id: \.0) { keys, action in
+                    LabeledContent(action) { KeyCaps(keys) }
                 }
+            } header: { Text("In the popup").settingsAnchor("popup-keys") }
+
+            Section {
+                ForEach(URLCommands.examples, id: \.self) { example in
+                    HStack {
+                        Text(example)
+                            .font(.system(.callout, design: .monospaced))
+                            .textSelection(.enabled)
+                            .lineLimit(1)
+                        Spacer()
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(example, forType: .string)
+                        } label: { Image(systemName: "doc.on.doc") }
+                        .buttonStyle(.borderless)
+                        .help("Copy")
+                    }
+                }
+            } header: {
+                Text("Automation").settingsAnchor("automation")
+            } footer: {
+                Text("Open these links from Shortcuts, Raycast or Terminal (`open \"voulum://…\"`).")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+extension ShortcutsSettings {
+    static let popupKeys: [(String, String)] = [
+        ("↑ ↓", "Choose an app"),
+        ("← →", "Volume (⇧ for bigger steps)"),
+        ("M", "Mute"),
+        ("E", "Equalizer"),
+        ("Space", "Play / pause"),
+        ("↩", "Show the app"),
+        ("0", "Back to 100%"),
+        ("⇥", "Devices"),
+        ("esc", "Close"),
+    ]
+}
+
+/// "↑ ↓" drawn as little keycaps.
+private struct KeyCaps: View {
+    let keys: [String]
+    init(_ keys: String) { self.keys = keys.split(separator: " ").map(String.init) }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(keys, id: \.self) { key in
+                Text(key)
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 22, minHeight: 20)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.08)))
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.primary.opacity(0.15), lineWidth: 0.5))
+            }
+        }
     }
 }
 
@@ -344,12 +585,12 @@ private struct EqualizerSettings: View {
                         .buttonStyle(.borderless)
                     }
                 }
-            } header: { Text("My presets") }
+            } header: { Text("My presets").settingsAnchor("my-presets") }
 
-            Section("Built-in presets") {
+            Section {
                 Text(EQPreset.builtIn.map(\.name).joined(separator: " · "))
                     .font(.callout).foregroundStyle(.secondary)
-            }
+            } header: { Text("Built-in presets").settingsAnchor("builtin-presets") }
         }
         .formStyle(.grouped)
     }
@@ -361,7 +602,7 @@ private struct AboutSettings: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
-            Text("Voulum").font(.title.weight(.semibold))
+            Text("Voulum").font(.title.weight(.semibold)).settingsAnchor("about")
             Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")")
                 .foregroundStyle(.secondary)
             Text("Per-app volume, routing and EQ for macOS.\nFree and open source under the MIT license.")
