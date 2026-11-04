@@ -170,6 +170,14 @@ final class AudioProcessController: ObservableObject {
 
     private var started = false
 
+    /// Retained so the Core Audio listener block stays alive for the app's
+    /// lifetime; also lets us remove the listener cleanly if we ever tear down.
+    private var defaultOutputListener: AudioObjectPropertyListenerBlock?
+    private var defaultOutputListenerAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain)
+
     func start() {
         guard !started else { return }
         started = true
@@ -178,9 +186,43 @@ final class AudioProcessController: ObservableObject {
         // before we start creating new ones — they otherwise pile up in
         // coreaudiod and can wedge the whole audio HAL.
         halQueue.async { ProcessTap.reapLeakedDevices() }
+        observeDefaultOutputDevice()
         reload()
         if ProcessInfo.processInfo.environment["VOULUM_SELFTEST"] != nil {
             runSelfTest()
+        }
+    }
+
+    /// Watch the system's default output device. When it changes (e.g. the user
+    /// switches from the Mac speakers to a Bluetooth headset), each active tap's
+    /// aggregate still points at the *old* device, so the tapped app keeps
+    /// playing there. Rebuild every active tap's aggregate around the new device
+    /// so per-app volume follows the output the user actually selected.
+    ///
+    /// Uses a block listener dispatched on the HAL queue — the same queue every
+    /// other blocking Core Audio call runs on, so rebuilds serialize behind any
+    /// in-flight activation/teardown instead of racing it.
+    private func observeDefaultOutputDevice() {
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            // Already on the HAL queue. Hop to the main actor to read the tap
+            // set, then rebuild each one back on the HAL queue.
+            Task { @MainActor in self?.rebuildActiveTapsForOutputChange() }
+        }
+        defaultOutputListener = block
+        let status = AudioObjectAddPropertyListenerBlock(
+            .system, &defaultOutputListenerAddress, halQueue, block)
+        if status != noErr {
+            log.error("Failed to observe default output device (status \(status))")
+        }
+    }
+
+    /// Rebuild the aggregate of every active tap so it follows the current
+    /// default output device. Each rebuild runs on the HAL queue.
+    private func rebuildActiveTapsForOutputChange() {
+        guard !taps.isEmpty else { return }
+        log.info("Default output device changed; rebuilding \(self.taps.count) tap(s)")
+        for tap in taps.values {
+            halQueue.async { tap.rebuildOutput() }
         }
     }
 

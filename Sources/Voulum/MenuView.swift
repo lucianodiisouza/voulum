@@ -3,7 +3,13 @@ import SwiftUI
 
 struct MenuView: View {
     @EnvironmentObject var controller: AudioProcessController
+    @EnvironmentObject var system: SystemAudioController
     @State private var launchAtLogin = LoginItem.isEnabled
+    /// Whether the output section is expanded; remembered across launches so a
+    /// user who only wants the per-app mixer can collapse it for good.
+    @AppStorage("outputSectionExpanded") private var outputExpanded = true
+    /// Transient: showing the "which outputs to list" checkboxes.
+    @State private var managingOutputs = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,12 +28,166 @@ struct MenuView: View {
             }
 
             Divider()
+            outputSection
+
+            Divider()
             footer
         }
         .frame(width: 320)
         // Refresh on open, poll while open, stop when the menu closes.
-        .onAppear { controller.beginLiveUpdates() }
+        .onAppear {
+            controller.beginLiveUpdates()
+            system.refresh()
+        }
         .onDisappear { controller.endLiveUpdates() }
+    }
+
+    /// System output: a compact master-volume row plus a device picker, so Voulum
+    /// can stand in for the macOS menu-bar volume control. Kept intentionally
+    /// secondary to the per-app list — a collapsible section with tight spacing.
+    /// Collapse it to fall back to just the per-app mixer.
+    private var outputSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            outputHeader
+
+            if outputExpanded {
+                VStack(alignment: .leading, spacing: 6) {
+                    masterVolumeRow
+
+                    if managingOutputs {
+                        outputManageList
+                    } else if system.visibleDevices.count > 1 {
+                        outputPicker
+                    }
+                }
+                // Fade in place while the section's height animates. A moving
+                // transition would slide this content down over the section
+                // above it (the playing-apps list) — this reveals cleanly.
+                .transition(.opacity)
+            }
+        }
+        .padding(.bottom, 4)
+        .animation(.easeInOut(duration: 0.2), value: outputExpanded)
+        .animation(.easeInOut(duration: 0.18), value: managingOutputs)
+        .animation(.easeInOut(duration: 0.18), value: system.visibleDevices.count)
+    }
+
+    /// Header row: a collapse toggle on the left, and — when expanded — an
+    /// Edit/Done button to curate the list; when collapsed, the current device
+    /// name so the section still tells you where sound is going at a glance.
+    private var outputHeader: some View {
+        HStack(spacing: 6) {
+            Button {
+                outputExpanded.toggle()
+                if !outputExpanded { managingOutputs = false }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(outputExpanded ? 90 : 0))
+                    Text("Output")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            if outputExpanded {
+                if system.devices.count > 1 {
+                    Button { managingOutputs.toggle() } label: {
+                        Text(managingOutputs ? "Done" : "Edit")
+                            .font(.caption)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if let name = system.current?.name {
+                Text(name)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+    }
+
+    private var masterVolumeRow: some View {
+        HStack(spacing: 10) {
+            Button { system.toggleMute() } label: {
+                Image(systemName: system.menuBarSymbol)
+                    .frame(width: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(system.muted ? "Unmute" : "Mute")
+
+            Slider(value: systemVolume, in: 0...1)
+        }
+        .padding(.horizontal, 14)
+    }
+
+    /// The normal, selectable device list (visible devices only).
+    private var outputPicker: some View {
+        VStack(spacing: 1) {
+            ForEach(system.visibleDevices) { device in
+                OutputDeviceRow(
+                    device: device,
+                    isCurrent: device.id == system.currentDeviceID,
+                    select: { system.setDefaultOutput(device) })
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 2)
+    }
+
+    /// Edit mode: every real output with a checkbox, so the user can drop devices
+    /// they never send audio to (monitors, TVs) from the picker.
+    private var outputManageList: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            ForEach(system.devices) { device in
+                Toggle(isOn: visibilityBinding(device)) {
+                    HStack(spacing: 8) {
+                        Image(systemName: device.symbolName)
+                            .frame(width: 20)
+                            .foregroundStyle(.secondary)
+                        Text(device.name)
+                            .lineLimit(1)
+                    }
+                }
+                .toggleStyle(.checkbox)
+                .disabled(device.id == system.currentDeviceID)
+                .help(device.id == system.currentDeviceID
+                      ? "The current output is always shown" : "")
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+            }
+
+            Text("Unchecked outputs are hidden from the list.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.top, 2)
+        }
+        .padding(.top, 2)
+    }
+
+    private func visibilityBinding(_ device: AudioOutputDevice) -> Binding<Bool> {
+        Binding(
+            get: { !system.isHidden(device) },
+            set: { system.setHidden(device, !$0) }
+        )
+    }
+
+    private var systemVolume: Binding<Double> {
+        Binding(
+            get: { system.muted ? 0 : Double(system.volume) },
+            set: { system.setVolume(Float($0)) }
+        )
     }
 
     private var header: some View {
@@ -55,21 +215,20 @@ struct MenuView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Launch at login", isOn: launchAtLoginBinding)
-                .toggleStyle(.checkbox)
-                .controlSize(.small)
+            HStack {
+                Toggle("Launch at login", isOn: launchAtLoginBinding)
+                    .toggleStyle(.checkbox)
+                    .controlSize(.small)
+                Spacer()
+                Button("Quit Voulum") { NSApp.terminate(nil) }
+                    .buttonStyle(.borderless)
+            }
 
             if !controller.audioPermissionGranted {
                 Label("First volume change asks for audio permission.",
                       systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Button("Quit Voulum") { NSApp.terminate(nil) }
-                    .buttonStyle(.borderless)
-                Spacer()
             }
         }
         .padding(.horizontal, 14)
@@ -83,6 +242,46 @@ struct MenuView: View {
             get: { launchAtLogin },
             set: { launchAtLogin = LoginItem.setEnabled($0) }
         )
+    }
+}
+
+/// One selectable output device in the picker. A quiet row that highlights on
+/// hover and marks the current device with the accent color + a checkmark, so it
+/// reads like the macOS Sound menu without pulling focus from the app list.
+struct OutputDeviceRow: View {
+    let device: AudioOutputDevice
+    let isCurrent: Bool
+    let select: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: select) {
+            HStack(spacing: 8) {
+                Image(systemName: device.symbolName)
+                    .frame(width: 20)
+                    .foregroundStyle(isCurrent ? Color.accentColor : .primary)
+                Text(device.name)
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if isCurrent {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(hovering ? Color.primary.opacity(0.08) : .clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 

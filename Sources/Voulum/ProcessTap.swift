@@ -66,13 +66,55 @@ final class ProcessTap: @unchecked Sendable {
         description.isExclusive = false
 
         var newTapID: AudioObjectID = .unknown
-        var status = AudioHardwareCreateProcessTap(description, &newTapID)
+        let status = AudioHardwareCreateProcessTap(description, &newTapID)
         guard status == noErr, newTapID.isValid else {
             throw TapError.create("AudioHardwareCreateProcessTap", status)
         }
         tapID = newTapID
 
-        // 2. Resolve current default output device + build the aggregate.
+        // 2. Build the aggregate around the current default output device and
+        //    start streaming. Split out so it can be rebuilt on its own when the
+        //    output device changes (see `rebuildOutput`) without recreating the tap.
+        do {
+            try buildAggregateAndStart()
+        } catch {
+            AudioHardwareDestroyProcessTap(tapID)
+            tapID = .unknown
+            throw error
+        }
+
+        isActive = true
+        log.info("Tap active for \(self.process.name, privacy: .public) (pid \(self.process.pid))")
+    }
+
+    /// Rebuild the aggregate device so tapped audio follows the *current* default
+    /// output device. Call when `kAudioHardwarePropertyDefaultOutputDevice`
+    /// changes (e.g. the user switches from the Mac speakers to a Bluetooth
+    /// headset) — the aggregate captured the old device at creation time, so
+    /// without this the tapped app keeps playing on the previous output.
+    ///
+    /// The process tap itself is output-independent, so we keep it and only tear
+    /// down and recreate the aggregate + IOProc. `gain` lives behind `gainPtr`, so
+    /// the user's volume/mute survives the rebuild. Runs on the HAL queue.
+    func rebuildOutput() {
+        guard isActive else { return }
+        teardownAggregate()
+        do {
+            try buildAggregateAndStart()
+            log.info("Rebuilt output for \(self.process.name, privacy: .public) (pid \(self.process.pid))")
+        } catch {
+            // Leave the tap in place but inactive; the app is effectively muted
+            // until the next activation attempt rather than routed to a dead device.
+            isActive = false
+            log.error("Failed to rebuild output for \(self.process.name, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Create the private aggregate device around the current default output
+    /// device, install the gain-applying IOProc, and start streaming. Assumes
+    /// `tapID` is already a valid process tap.
+    private func buildAggregateAndStart() throws {
+        // Resolve the current default output device + the tap's UID.
         let outputID: AudioObjectID = try AudioObjectID.system.read(
             kAudioHardwarePropertyDefaultOutputDevice, default: AudioObjectID.unknown)
         guard outputID.isValid,
@@ -101,15 +143,13 @@ final class ProcessTap: @unchecked Sendable {
         ]
 
         var newAggregate: AudioObjectID = .unknown
-        status = AudioHardwareCreateAggregateDevice(description2 as CFDictionary, &newAggregate)
+        var status = AudioHardwareCreateAggregateDevice(description2 as CFDictionary, &newAggregate)
         guard status == noErr, newAggregate.isValid else {
-            AudioHardwareDestroyProcessTap(tapID)
-            tapID = .unknown
             throw TapError.create("AudioHardwareCreateAggregateDevice", status)
         }
         aggregateID = newAggregate
 
-        // 3. Install the gain-applying IOProc and start it.
+        // Install the gain-applying IOProc and start it.
         let gainPtr = self.gainPtr
         let ioBlock: AudioDeviceIOBlock = { _, inInputData, _, outOutputData, _ in
             ProcessTap.render(input: inInputData, output: outOutputData, gain: gainPtr.pointee)
@@ -118,19 +158,16 @@ final class ProcessTap: @unchecked Sendable {
         var newProcID: AudioDeviceIOProcID?
         status = AudioDeviceCreateIOProcIDWithBlock(&newProcID, aggregateID, ioQueue, ioBlock)
         guard status == noErr, let procID = newProcID else {
-            teardown()
+            teardownAggregate()
             throw TapError.create("AudioDeviceCreateIOProcIDWithBlock", status)
         }
         ioProcID = procID
 
         status = AudioDeviceStart(aggregateID, procID)
         guard status == noErr else {
-            teardown()
+            teardownAggregate()
             throw TapError.create("AudioDeviceStart", status)
         }
-
-        isActive = true
-        log.info("Tap active for \(self.process.name, privacy: .public) (pid \(self.process.pid))")
     }
 
     func invalidate() {
@@ -139,7 +176,9 @@ final class ProcessTap: @unchecked Sendable {
         isActive = false
     }
 
-    private func teardown() {
+    /// Stop and destroy the aggregate device + IOProc, leaving the process tap
+    /// intact. Used both by full teardown and by `rebuildOutput`.
+    private func teardownAggregate() {
         if let procID = ioProcID, aggregateID.isValid {
             AudioDeviceStop(aggregateID, procID)
             AudioDeviceDestroyIOProcID(aggregateID, procID)
@@ -149,6 +188,10 @@ final class ProcessTap: @unchecked Sendable {
             AudioHardwareDestroyAggregateDevice(aggregateID)
             aggregateID = .unknown
         }
+    }
+
+    private func teardown() {
+        teardownAggregate()
         if tapID.isValid {
             AudioHardwareDestroyProcessTap(tapID)
             tapID = .unknown
