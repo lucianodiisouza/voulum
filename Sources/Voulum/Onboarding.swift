@@ -246,6 +246,8 @@ struct OnboardingView: View {
             AudioStage(probe: model.probe, idleEnergy: model.idleEnergy, live: model.access == .granted)
 
             VStack(spacing: 0) {
+                progress
+                    .padding(.top, 22)
                 ZStack {
                     switch model.step {
                     case .hello: HelloStep(next: { go(.listen) })
@@ -258,9 +260,7 @@ struct OnboardingView: View {
                     insertion: .opacity.combined(with: .scale(scale: 1.04)).combined(with: .offset(y: 12)),
                     removal: .opacity.combined(with: .scale(scale: 0.96))))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                progress
-                    .padding(.bottom, 22)
+                .padding(.bottom, 40)
             }
         }
         .frame(width: 640, height: 520)
@@ -339,10 +339,12 @@ private struct AudioStage: View {
         let width = (size.width - gap * CGFloat(bars + 1)) / CGFloat(bars)
         let baseline = size.height
         let maxHeight = size.height * 0.34
+        // Bright at the floor, fading out toward the top so the text above
+        // stays readable.
         let gradient = Gradient(colors: [
-            Color(red: 0.2, green: 0.95, blue: 0.7),
-            Color(red: 0.3, green: 0.8, blue: 1),
-            Color(red: 0.55, green: 0.4, blue: 1),
+            Color(red: 0.2, green: 0.95, blue: 0.7).opacity(0.95),
+            Color(red: 0.3, green: 0.8, blue: 1).opacity(0.6),
+            Color(red: 0.55, green: 0.4, blue: 1).opacity(0.15),
         ])
         for i in 0..<bars {
             let p = Double(i) / Double(bars - 1)
@@ -357,11 +359,6 @@ private struct AudioStage: View {
             context.fill(shape, with: .linearGradient(gradient, startPoint: CGPoint(x: 0, y: baseline),
                                                       endPoint: CGPoint(x: 0, y: baseline - maxHeight)))
         }
-        // Fade the bars into the stage so text above stays readable.
-        let fade = Path(CGRect(x: 0, y: baseline - maxHeight, width: size.width, height: maxHeight))
-        context.fill(fade, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.03, green: 0.03, blue: 0.08).opacity(0.85), .clear]),
-            startPoint: CGPoint(x: 0, y: baseline - maxHeight), endPoint: CGPoint(x: 0, y: baseline - maxHeight * 0.3)))
     }
 }
 
