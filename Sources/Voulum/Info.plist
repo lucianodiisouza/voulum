@@ -34,7 +34,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Voulum asks media apps and browsers what's playing so it can show the title and play or pause them.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Voulum picks up app audio so it can set each app's volume.</string>
+	<string>Voulum picks up app audio so it can set each app's volume, and shows your microphone's level in the Mixing Desk style.</string>
 	<!-- Sparkle auto-update. SUPublicEDKey verifies every update; its
 	     private half lives in the login keychain (see docs/UPDATES.md). -->
 	<key>SUEnableAutomaticChecks</key>

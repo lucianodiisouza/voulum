@@ -177,6 +177,22 @@
         }
       }
     },
+    "Allow microphone access to see its level": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permita o acesso ao microfone para ver o nível"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permite el acceso al micrófono para ver su nivel"
+          }
+        }
+      }
+    },
     "An open source browser for developers": {
       "localizations": {
         "pt-BR": {
@@ -1473,6 +1489,22 @@
         }
       }
     },
+    "Mic · %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mic · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mic · %@"
+          }
+        }
+      }
+    },
     "Mic: %@": {
       "localizations": {
         "pt-BR": {
@@ -1581,6 +1613,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Silenciar"
+          }
+        }
+      }
+    },
+    "Mute microphone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silenciar microfone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silenciar micrófono"
           }
         }
       }
@@ -3101,6 +3149,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activar sonido"
+          }
+        }
+      }
+    },
+    "Unmute microphone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ativar microfone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activar micrófono"
           }
         }
       }

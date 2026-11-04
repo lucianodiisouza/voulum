@@ -30,19 +30,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Voulum picks up app audio so it can set each app's volume."
+            "value": "Voulum picks up app audio so it can set each app's volume, and shows your microphone's level in the Mixing Desk style."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O Voulum capta o áudio dos apps para ajustar o volume de cada um."
+            "value": "O Voulum capta o áudio dos apps para ajustar o volume de cada um e mostra o nível do seu microfone no estilo Mesa de som."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Voulum capta el audio de las apps para ajustar el volumen de cada una."
+            "value": "Voulum capta el audio de las apps para ajustar el volumen de cada una y muestra el nivel de tu micrófono en el estilo Mesa de mezclas."
           }
         }
       }

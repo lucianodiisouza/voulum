@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Combine
 import CoreAudio
 import Foundation
@@ -61,6 +62,7 @@ final class AudioEngine: ObservableObject {
     private let devices = DeviceController.shared
     private var taps: [String: AppTap] = [:]
     private let master = MasterMeter()
+    private let mic = MicMeter()
     /// The concrete device UIDs each tap was last routed to.
     private var appliedRoutes: [String: [String]] = [:]
 
@@ -187,36 +189,56 @@ final class AudioEngine: ObservableObject {
             Task { @MainActor in
                 self?.reload()
                 self?.devices.refreshLevels()
-                self?.syncMaster()
+                self?.syncDeskMeters()
             }
         }
         reload()
         devices.refreshLevels()
-        syncMaster()
+        syncDeskMeters()
         meters.start { [weak self] in
             guard let self else { return [:] }
             var levels = self.taps.mapValues { $0.isActive ? $0.takeLevels() : TapLevels() }
             if self.masterRunning { levels[LevelMeters.masterKey] = self.master.takeLevels() }
+            if self.micRunning { levels[LevelMeters.micKey] = self.mic.takeLevels() }
             return levels
         }
     }
 
     private var masterRunning = false
+    private var micRunning = false
 
-    /// The desk style's master meter runs while the popup is open, and only
-    /// once audio access was granted, so opening the popup never asks for it.
-    private func syncMaster() {
-        let wanted = pollTimer != nil && audioPermissionGranted && prefs.popupStyle.effective == .desk
-        masterRunning = wanted
-        let master = self.master
-        if wanted {
+    /// The desk style's meters run while the popup is open. The master needs
+    /// audio access and the mic needs microphone access; the master never
+    /// asks (opening the popup shouldn't), the mic asks once, the first time.
+    private func syncDeskMeters() {
+        let desk = pollTimer != nil && prefs.popupStyle.effective == .desk
+        let master = self.master, mic = self.mic
+
+        masterRunning = desk && audioPermissionGranted
+        if masterRunning {
             let excluded = taps.values.filter(\.isActive).flatMap(\.processIDs)
             let output = devices.defaultOutputID
             halQueue.async { master.run(excluding: excluded, output: output) }
         } else {
             halQueue.async { master.stop() }
         }
+
+        if desk && MicMeter.accessUndecided && !askedForMic {
+            askedForMic = true
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
+                Task { @MainActor in self?.syncDeskMeters() }
+            }
+        }
+        micRunning = desk && MicMeter.accessGranted
+        if micRunning {
+            let input = devices.defaultInputID
+            halQueue.async { mic.run(device: input) }
+        } else {
+            halQueue.async { mic.stop() }
+        }
     }
+
+    private var askedForMic = false
 
     /// Whether the popup is open.
     var isLive: Bool { pollTimer != nil }
@@ -225,7 +247,7 @@ final class AudioEngine: ObservableObject {
         pollTimer?.invalidate()
         pollTimer = nil
         meters.stop()
-        syncMaster()
+        syncDeskMeters()
     }
 
     func shutdown() {
@@ -603,6 +625,8 @@ final class LevelMeters: ObservableObject {
     @Published private(set) var stereo: [String: StereoLevel] = [:]
     /// The key the master meter's readings use in `levels` and `stereo`.
     static let masterKey = "voulum.master"
+    /// The same for the microphone.
+    static let micKey = "voulum.mic"
     private var timer: Timer?
 
     /// Loudness (RMS) on a −54…−6 dBFS scale, so typical music sits mid-scale

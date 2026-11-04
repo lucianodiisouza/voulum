@@ -291,6 +291,10 @@ struct OutputCard: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            if desk, let mic = devices.defaultInput {
+                MicStrip(device: mic)
+                    .padding(.top, 4)
+            }
         }
     }
 
@@ -299,6 +303,56 @@ struct OutputCard: View {
         if let device = devices.defaultOutput { parts.append(device.transportLabel) }
         if let input = devices.defaultInput { parts.append(String(localized: "Mic: \(input.name)")) }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Mic strip
+
+/// The desk style's mic channel: what the current microphone hears, its
+/// input volume and its mute key.
+private struct MicStrip: View {
+    let device: AudioDevice
+    @EnvironmentObject private var devices: DeviceController
+    @EnvironmentObject private var prefs: Preferences
+    @EnvironmentObject private var meters: LevelMeters
+
+    var body: some View {
+        let level = devices.inputLevels[device.id] ?? DeviceLevel()
+        VStack(alignment: .leading, spacing: 5) {
+            Text("Mic · \(device.name)")
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .textCase(.uppercase)
+                .tracking(1.4)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            HStack(spacing: 6) {
+                DeskKey(label: "M",
+                        help: level.muted ? String(localized: "Unmute microphone") : String(localized: "Mute microphone"),
+                        active: level.muted) {
+                    devices.toggleMute(device, input: true)
+                }
+                VStack(spacing: 5) {
+                    let stereo = level.muted ? StereoLevel() : meters.stereo[LevelMeters.micKey] ?? StereoLevel()
+                    LEDMeter(left: stereo.left, right: stereo.right, clipping: meters.hot.contains(LevelMeters.micKey))
+                    if level.adjustable {
+                        VolumeSlider(value: Binding(get: { level.volume },
+                                                    set: { devices.setVolume($0, for: device, input: true) }),
+                                     muted: level.muted, step: prefs.volumeStep.fraction)
+                    }
+                }
+                Text(level.muted ? String(localized: "Muted") : level.adjustable ? level.volume.percentLabel : "")
+                    .font(.system(.caption, design: .monospaced).weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 42, alignment: .trailing)
+            }
+            if !MicMeter.accessGranted && !MicMeter.accessUndecided {
+                Button("Allow microphone access to see its level") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
+        }
     }
 }
 
