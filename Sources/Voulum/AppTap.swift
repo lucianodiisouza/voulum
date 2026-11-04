@@ -36,10 +36,11 @@ final class AppTap: @unchecked Sendable {
     private let ioQueue = DispatchQueue(label: "dev.oprimo.voulum.tap.io", qos: .userInteractive)
 
     /// [0] target gain, [1] current (ramped) gain, [2] peak since last read,
-    /// [3] limiter on (0/1), [4] loudest buffer RMS since last read.
+    /// [3] limiter on (0/1), [4] loudest buffer RMS since last read,
+    /// [5] / [6] loudest left / right RMS since last read.
     private let shared: UnsafeMutablePointer<Float> = {
-        let p = UnsafeMutablePointer<Float>.allocate(capacity: 5)
-        p.initialize(from: [1, 1, 0, 0, 0], count: 5)
+        let p = UnsafeMutablePointer<Float>.allocate(capacity: 7)
+        p.initialize(from: [1, 1, 0, 0, 0, 0, 0], count: 7)
         return p
     }()
 
@@ -76,11 +77,11 @@ final class AppTap: @unchecked Sendable {
         set { shared[3] = newValue ? 1 : 0 }
     }
 
-    /// Loudest buffer RMS and sample peak since the previous call (0...~1).
-    func takeLevels() -> (rms: Float, peak: Float) {
-        let levels = (shared[4], shared[2])
-        shared[2] = 0
-        shared[4] = 0
+    /// Loudest buffer RMS (overall, left, right) and sample peak since the
+    /// previous call (0...~1).
+    func takeLevels() -> TapLevels {
+        let levels = TapLevels(rms: shared[4], peak: shared[2], left: shared[5], right: shared[6])
+        for i in [2, 4, 5, 6] { shared[i] = 0 }
         return levels
     }
 
@@ -324,7 +325,8 @@ final class AppTap: @unchecked Sendable {
             // 4. Soft limiter (only when boosting), then metering.
             let limit = shared[3] != 0
             var peak: Float = 0
-            var sumSquares: Float = 0
+            var sumLeft: Float = 0
+            var sumRight: Float = 0
             let knee: Float = 0.89
             for i in 0..<(frames * 2) {
                 var x = scratch[i]
@@ -338,11 +340,15 @@ final class AppTap: @unchecked Sendable {
                 }
                 let a = abs(x)
                 if a > peak { peak = a }
-                sumSquares += x * x
+                if i & 1 == 0 { sumLeft += x * x } else { sumRight += x * x }
             }
             if peak > shared[2] { shared[2] = peak }
-            let rms = (sumSquares / Float(frames * 2)).squareRoot()
+            let rms = ((sumLeft + sumRight) / Float(frames * 2)).squareRoot()
             if rms > shared[4] { shared[4] = rms }
+            let left = (sumLeft / Float(frames)).squareRoot()
+            let right = (sumRight / Float(frames)).squareRoot()
+            if left > shared[5] { shared[5] = left }
+            if right > shared[6] { shared[6] = right }
         }
 
         // 5. Fan out to every output buffer, mapping L/R onto device channels.
