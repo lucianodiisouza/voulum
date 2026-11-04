@@ -112,7 +112,7 @@ struct AppRowView: View {
     }
 
     private var subtitle: (String, Color) {
-        if !app.isRunning { return ("Not running · settings are kept", .secondary) }
+        if !app.isRunning { return ("Not running · settings saved", .secondary) }
         if engine.isRouteFallingBack(app) {
             return ("Chosen output unavailable · using \(devices.defaultOutput?.name ?? "system output")", .orange)
         }
@@ -191,7 +191,7 @@ struct AppRowView: View {
         if prefs.isPinned(app.key) {
             Button("Unpin") { engine.setPinned(app, false) }
         } else {
-            Button("Pin — Keep in List When Quiet") { engine.setPinned(app, true) }
+            Button("Keep in List When Quiet") { engine.setPinned(app, true) }
         }
         Button("Reset Volume, EQ & Output") { engine.reset(app) }
             .disabled(settings.isDefault)
@@ -262,7 +262,7 @@ struct RoutePicker: View {
                     engine.setRoute(uids.isEmpty ? .system : .devices(uids), for: app)
                 }
             }
-            Text("Tick several devices to play on all of them at once.")
+            Text("Pick more than one device to play on all of them.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)

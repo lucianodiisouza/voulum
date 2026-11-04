@@ -117,7 +117,7 @@ struct PopupView: View {
             Text("Nothing is playing")
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.secondary)
-            Text("Apps show up here the moment they make a sound.\nPin one from its ⋯ menu to keep it here.")
+            Text("Apps appear here when they play sound.\nPin one from its ⋯ menu to keep it here.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

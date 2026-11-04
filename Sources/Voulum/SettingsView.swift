@@ -40,8 +40,8 @@ struct SettingsEntry: Identifiable {
         .init(id: "login", title: "Open at login", tab: .general, keywords: "launch startup start boot"),
         .init(id: "theme", title: "Popup style", tab: .general, keywords: "appearance liquid glass theme look translucent"),
         .init(id: "icon", title: "Menu bar icon", tab: .general, keywords: "status item style adaptive speaker waveform dial"),
-        .init(id: "pinned-quiet", title: "Keep pinned apps listed", tab: .general, keywords: "behaviour quiet idle"),
-        .init(id: "pause-others", title: "Pause other apps on play", tab: .general, keywords: "behaviour transport play pause"),
+        .init(id: "pinned-quiet", title: "Keep pinned apps listed", tab: .general, keywords: "behavior quiet idle"),
+        .init(id: "pause-others", title: "Pause other apps on play", tab: .general, keywords: "behavior transport play pause"),
         .init(id: "step", title: "Volume step", tab: .general, keywords: "arrow keys scroll wheel increment"),
         .init(id: "updates", title: "Updates", tab: .general, keywords: "sparkle check version automatic"),
         .init(id: "onboarding", title: "Show welcome tour", tab: .general, keywords: "onboarding intro tutorial setup"),
@@ -312,7 +312,7 @@ private struct GeneralSettings: View {
                 Text("Adaptive shows the kind of device you're listening on. Every style turns into a slashed speaker when the output is muted.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Behaviour") {
+            Section("Behavior") {
                 Toggle("Keep pinned apps in the list when they're quiet", isOn: $prefs.showInactivePinned)
                     .settingsAnchor("pinned-quiet")
                 Toggle("Pressing play in Voulum pauses other apps", isOn: $prefs.pauseOthersOnPlay)
@@ -353,7 +353,7 @@ private struct AppsSettings: View {
         Form {
             Section {
                 if prefs.pinned.isEmpty {
-                    Text("Pin an app from its ⋯ menu in the popup to keep it listed — handy for setting its volume before it starts playing.")
+                    Text("Pinned apps stay in the popup when they're quiet, so you can set their volume before they play. Pin one from its ⋯ menu.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 ForEach(prefs.pinned) { app in
@@ -365,7 +365,7 @@ private struct AppsSettings: View {
 
             Section {
                 if prefs.ignored.isEmpty {
-                    Text("Ignored apps are left completely alone — Voulum won't list them or touch their audio.")
+                    Text("Voulum won't list ignored apps or touch their audio.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 ForEach(prefs.ignored) { app in
@@ -381,7 +381,7 @@ private struct AppsSettings: View {
             Section {
                 let keys = prefs.apps.keys.sorted()
                 if keys.isEmpty {
-                    Text("Nothing yet. Voulum remembers each app's volume, EQ and output once you change them.")
+                    Text("Nothing saved yet. Voulum keeps an app's volume, EQ and output after you change them.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 ForEach(keys, id: \.self) { key in
@@ -512,7 +512,7 @@ private struct ShortcutsSettings: View {
             } header: {
                 Text("Global shortcuts").settingsAnchor("global")
             } footer: {
-                Text("“The app that's playing” is whichever app is making sound — so turning down a video in a background tab works while you type elsewhere. Hold the volume keys to keep going; turning up a muted app unmutes it.")
+                Text("These act on the app that's making sound, even in a background tab. Hold a volume shortcut to keep going. Turning up a muted app unmutes it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

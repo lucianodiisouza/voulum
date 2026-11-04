@@ -326,8 +326,8 @@ private struct PermissionPage: View {
     enum ProbeState { case idle, asking, granted, unsure }
 
     var body: some View {
-        PageLayout(title: "Let Voulum hear your apps",
-                   subtitle: "To change an app's volume, Voulum picks up its sound and plays it back adjusted. macOS asks you to allow that once. Nothing is recorded or leaves your Mac.") {
+        PageLayout(title: "Allow audio access",
+                   subtitle: "Voulum changes an app's volume by picking up its sound and playing it back at the level you set. macOS asks once. Nothing is recorded, and nothing leaves your Mac.") {
             Image(systemName: granted ? "checkmark.circle.fill" : "waveform.circle.fill")
                 .font(.system(size: 96, weight: .regular))
                 .foregroundStyle(granted ? AnyShapeStyle(Color.green) : AnyShapeStyle(LinearGradient(colors: [.indigo, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)))
@@ -340,13 +340,13 @@ private struct PermissionPage: View {
                     Button("Allow Audio Access…") { ask() }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
-                    Text("Play something first so Voulum can tell it worked.")
+                    Text("Play something first so Voulum can check that it worked.")
                         .font(.caption).foregroundStyle(.secondary)
                 case .asking:
                     ProgressView().controlSize(.small)
                     Text("Choose Allow in the dialog.").font(.callout).foregroundStyle(.secondary)
                 case .unsure:
-                    Text("Voulum didn't hear anything yet. If you chose Don't Allow, turn Voulum on in Privacy & Security ▸ Screen & System Audio Recording.")
+                    Text("Voulum didn't hear any sound. If you chose Don't Allow, turn Voulum on in Privacy & Security ▸ Screen & System Audio Recording.")
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 420)
@@ -384,8 +384,8 @@ private struct StylePage: View {
     @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
-        PageLayout(title: "Make it yours",
-                   subtitle: "Pick a look for the popup. Light and dark follow your Mac, and you can change this anytime in Settings.") {
+        PageLayout(title: "Choose a look",
+                   subtitle: "Light and dark follow your Mac. You can change this later in Settings.") {
             HStack(spacing: 18) {
                 styleCard(.standard)
                 styleCard(.glass)
@@ -457,8 +457,8 @@ private struct ShortcutsPage: View {
     @EnvironmentObject private var prefs: Preferences
 
     var body: some View {
-        PageLayout(title: "Control it from anywhere",
-                   subtitle: "Set a few shortcuts for the app that's playing. You can skip this and add them later.") {
+        PageLayout(title: "Shortcuts",
+                   subtitle: "Control the app that's playing without opening Voulum. Optional, and you can set them later.") {
             Image(systemName: "command.square.fill")
                 .font(.system(size: 92))
                 .foregroundStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .top, endPoint: .bottom))

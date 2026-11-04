@@ -189,7 +189,7 @@ struct EQCurve: View {
                     .onEnded { _ in activeBand = nil }
             )
             .onTapGesture(count: 2) { onChange(band, 0) }
-            .help("\(EQBand.label(band)) Hz: \(String(format: "%+.1f", gain)) dB — double-click to reset")
+            .help("\(EQBand.label(band)) Hz: \(String(format: "%+.1f", gain)) dB. Double-click to reset.")
     }
 
     // MARK: Geometry

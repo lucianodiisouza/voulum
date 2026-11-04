@@ -12,7 +12,7 @@ struct NowPlaying: Equatable {
     /// in which case the UI falls back to the app name.
     var subtitle: String {
         switch (artist.isEmpty, album?.isEmpty ?? true) {
-        case (false, false): return "\(artist) — \(album!)"
+        case (false, false): return "\(artist) · \(album!)"
         case (false, true):  return artist
         case (true, false):  return album!
         case (true, true):   return ""

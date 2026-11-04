@@ -28,15 +28,15 @@
 	<!-- Shown when macOS prompts for audio-capture permission (needed to tap
 	     another process's audio for volume control). -->
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<string>Voulum picks up app audio so it can set each app's volume.</string>
 	<!-- Shown when macOS prompts to allow controlling a media app (Spotify,
 	     Apple Music, VLC), used to read the current track and drive playback. -->
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Voulum reads the current track from media apps like Spotify, Apple Music, and VLC to show what's playing and let you control it.</string>
+	<string>Voulum asks media apps and browsers what's playing so it can show the title and play or pause them.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<string>Voulum picks up app audio so it can set each app's volume.</string>
 	<!-- Sparkle auto-update. SUPublicEDKey must be filled in before updates
-	     will verify — see docs/UPDATES.md. Interval is 24h. -->
+	     will verify (see docs/UPDATES.md). Interval is 24h. -->
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
