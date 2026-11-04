@@ -64,6 +64,28 @@ enum MenuBarIconStyle: String, CaseIterable, Codable, Identifiable {
 }
 
 /// How far one keyboard / scroll / hotkey nudge moves a volume.
+/// The popup's backdrop.
+enum PopupStyle: String, CaseIterable, Codable, Identifiable {
+    /// The system's frosted popover material.
+    case standard
+    /// macOS 26 Liquid Glass: clearer, refracting what's behind it.
+    case glass
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .standard: return "Frosted"
+        case .glass: return "Liquid Glass"
+        }
+    }
+    static var glassAvailable: Bool {
+        if #available(macOS 26, *) { return true }
+        return false
+    }
+    /// The style actually drawn: Liquid Glass falls back on older systems.
+    var effective: PopupStyle { self == .glass && !Self.glassAvailable ? .standard : self }
+}
+
 enum VolumeStep: Int, CaseIterable, Codable, Identifiable {
     case fine = 2, normal = 5, coarse = 10
     var id: Int { rawValue }
@@ -90,6 +112,7 @@ final class Preferences: ObservableObject {
     @Published var userPresets: [EQPreset] { didSet { scheduleSave() } }
 
     @Published var iconStyle: MenuBarIconStyle { didSet { scheduleSave() } }
+    @Published var popupStyle: PopupStyle { didSet { scheduleSave() } }
     @Published var volumeStep: VolumeStep { didSet { scheduleSave() } }
     @Published var pauseOthersOnPlay: Bool { didSet { scheduleSave() } }
     @Published var showDevices: Bool { didSet { scheduleSave() } }
@@ -118,6 +141,7 @@ final class Preferences: ObservableObject {
         ignored = load(Keys.ignored, [])
         userPresets = load(Keys.userPresets, [])
         iconStyle = MenuBarIconStyle(rawValue: defaults.string(forKey: Keys.iconStyle) ?? "") ?? .adaptive
+        popupStyle = PopupStyle(rawValue: defaults.string(forKey: Keys.popupStyle) ?? "") ?? .standard
         volumeStep = VolumeStep(rawValue: defaults.integer(forKey: Keys.volumeStep)) ?? .normal
         // Legacy keys from 0.4.x keep their meaning.
         pauseOthersOnPlay = defaults.object(forKey: Keys.pauseOthers) as? Bool ?? true
@@ -220,6 +244,7 @@ final class Preferences: ObservableObject {
         store(userPresets, Keys.userPresets)
         store(hotkeys, Keys.hotkeys)
         defaults.set(iconStyle.rawValue, forKey: Keys.iconStyle)
+        defaults.set(popupStyle.rawValue, forKey: Keys.popupStyle)
         defaults.set(volumeStep.rawValue, forKey: Keys.volumeStep)
         defaults.set(pauseOthersOnPlay, forKey: Keys.pauseOthers)
         defaults.set(showDevices, forKey: Keys.showDevices)
@@ -236,6 +261,7 @@ final class Preferences: ObservableObject {
         static let userPresets = "userEQPresets"
         static let hotkeys = "hotkeys"
         static let iconStyle = "menuBarIconStyle"
+        static let popupStyle = "popupStyle"
         static let volumeStep = "volumeStep"
         static let pauseOthers = "pauseOthersOnPlay"          // 0.4.x key
         static let showDevices = "outputSectionExpanded"      // 0.4.x key

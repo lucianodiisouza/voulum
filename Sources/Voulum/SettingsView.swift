@@ -281,6 +281,21 @@ private struct GeneralSettings: View {
                     get: { launchAtLogin }, set: { launchAtLogin = LoginItem.setEnabled($0) }))
                     .settingsAnchor("login")
             }
+            Section {
+                Picker("Popup style", selection: $prefs.popupStyle) {
+                    ForEach(PopupStyle.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!PopupStyle.glassAvailable)
+                .settingsAnchor("theme")
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text(PopupStyle.glassAvailable
+                     ? "Liquid Glass lets your desktop show through the popup. Light and dark follow your Mac."
+                     : "Liquid Glass needs macOS 26 or later. Light and dark follow your Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Menu bar icon") {
                 Picker("Style", selection: $prefs.iconStyle) {
                     ForEach(MenuBarIconStyle.allCases) { style in

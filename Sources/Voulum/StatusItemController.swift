@@ -53,6 +53,10 @@ final class StatusItemController: NSObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.reposition() }
             .store(in: &cancellables)
+        prefs.$popupStyle
+            .removeDuplicates()
+            .sink { [weak self] style in self?.panel.apply(style) }
+            .store(in: &cancellables)
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in self?.close() }
             .store(in: &cancellables)

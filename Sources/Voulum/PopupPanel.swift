@@ -9,8 +9,6 @@ import SwiftUI
 final class PopupPanel: NSPanel {
     static let cornerRadius: CGFloat = 16
 
-    private let backdrop = NSVisualEffectView()
-
     init(content: NSViewController) {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 380, height: 300),
                    styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -25,24 +23,11 @@ final class PopupPanel: NSPanel {
         animationBehavior = .utilityWindow
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
 
-        backdrop.material = .popover
-        backdrop.blendingMode = .behindWindow
-        backdrop.state = .active
-        backdrop.wantsLayer = true
-        backdrop.layer?.cornerRadius = Self.cornerRadius
-        backdrop.layer?.cornerCurve = .continuous
-        backdrop.layer?.masksToBounds = true
-        backdrop.layer?.borderWidth = 0.5
-        backdrop.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
-
         contentViewController = content
         let hosted = content.view
         hosted.translatesAutoresizingMaskIntoConstraints = false
         let container = NSView()
-        container.addSubview(backdrop)
         container.addSubview(hosted)
-        backdrop.frame = container.bounds
-        backdrop.autoresizingMask = [.width, .height]
         NSLayoutConstraint.activate([
             hosted.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             hosted.trailingAnchor.constraint(equalTo: container.trailingAnchor),
@@ -50,6 +35,7 @@ final class PopupPanel: NSPanel {
             hosted.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         contentView = container
+        apply(.standard)
     }
 
     // Borderless windows can't become key by default; the popup needs key
@@ -57,13 +43,34 @@ final class PopupPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// The backdrop the content sits on. Swapped by the popup style setting.
-    func setBackdrop(_ view: NSView) {
+    /// Swap the backdrop the content sits on.
+    func apply(_ style: PopupStyle) {
         guard let container = contentView, let hosted = contentViewController?.view else { return }
         container.subviews.filter { $0 !== hosted }.forEach { $0.removeFromSuperview() }
-        view.frame = container.bounds
-        view.autoresizingMask = [.width, .height]
-        container.addSubview(view, positioned: .below, relativeTo: hosted)
+        let backdrop = Self.backdrop(for: style.effective)
+        backdrop.frame = container.bounds
+        backdrop.autoresizingMask = [.width, .height]
+        container.addSubview(backdrop, positioned: .below, relativeTo: hosted)
+        invalidateShadow()
+    }
+
+    private static func backdrop(for style: PopupStyle) -> NSView {
+        if style == .glass, #available(macOS 26, *) {
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = cornerRadius
+            return glass
+        }
+        let frosted = NSVisualEffectView()
+        frosted.material = .popover
+        frosted.blendingMode = .behindWindow
+        frosted.state = .active
+        frosted.wantsLayer = true
+        frosted.layer?.cornerRadius = cornerRadius
+        frosted.layer?.cornerCurve = .continuous
+        frosted.layer?.masksToBounds = true
+        frosted.layer?.borderWidth = 0.5
+        frosted.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        return frosted
     }
 
     /// Place the panel's top edge just under the status item, centred on it
