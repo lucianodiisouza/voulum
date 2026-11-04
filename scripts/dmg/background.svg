@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 400" width="660" height="400">
+  <!-- The DMG window background. Same palette as the app icon: a VU meter's
+       cream face, ink and red zone. Icons sit at (170,190) and (490,190);
+       scripts/release.sh must agree. Render with scripts/dmg/render.sh. -->
+  <defs>
+    <radialGradient id="face" gradientUnits="userSpaceOnUse" cx="330" cy="430" r="560">
+      <stop offset="0" stop-color="#FFF4D6"/>
+      <stop offset="0.6" stop-color="#ECE6DA"/>
+      <stop offset="1" stop-color="#D6C9AE"/>
+    </radialGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.10  0 0 0 0 0.09  0 0 0 0 0.08  0 0 0 0.05 0"/>
+    </filter>
+  </defs>
+
+  <rect width="660" height="400" fill="url(#face)"/>
+  <rect width="660" height="400" filter="url(#grain)"/>
+
+  <!-- Meter scale across the top, like the face of the icon. -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M126.6 103.2 A500 500 0 0 1 434.0 70.9" stroke="#1A1815" stroke-opacity="0.25" stroke-width="2"/>
+    <path d="M439.7 69.1 A503 503 0 0 1 534.6 100.5" stroke="#E5371F" stroke-opacity="0.7" stroke-width="6"/>
+    <path d="M125.8 101.4L120.1 88.6M225.6 69.0L222.7 55.3M330.0 58.0L330.0 44.0M434.4 69.0L437.3 55.3" stroke="#1A1815" stroke-opacity="0.4" stroke-width="2.5"/>
+    <path d="M158.3 88.3L155.6 80.8M191.6 77.4L189.4 69.8M260.1 62.9L259.0 55.0M295.0 59.2L294.4 51.2M365.0 59.2L365.6 51.2M399.9 62.9L401.0 55.0" stroke="#1A1815" stroke-opacity="0.25" stroke-width="1.5"/>
+    <path d="M468.4 77.4L470.6 69.8M501.7 88.3L504.4 80.8" stroke="#E5371F" stroke-opacity="0.8" stroke-width="1.5"/>
+    <path d="M534.2 101.4L539.9 88.6" stroke="#E5371F" stroke-opacity="0.8" stroke-width="2.5"/>
+  </g>
+
+  <text x="330" y="90" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" letter-spacing="4" fill="#1A1815" fill-opacity="0.45">VOULUM</text>
+
+  <!-- Volume ramp from the app to Applications: quiet to loud, into the red. -->
+  <g transform="translate(252 0)">
+    <rect x="0"   y="202" width="8" height="8"  rx="2" fill="#1A1815" fill-opacity="0.30"/>
+    <rect x="15"  y="198" width="8" height="12" rx="2" fill="#1A1815" fill-opacity="0.36"/>
+    <rect x="30"  y="194" width="8" height="16" rx="2" fill="#1A1815" fill-opacity="0.42"/>
+    <rect x="45"  y="190" width="8" height="20" rx="2" fill="#1A1815" fill-opacity="0.50"/>
+    <rect x="60"  y="186" width="8" height="24" rx="2" fill="#1A1815" fill-opacity="0.58"/>
+    <rect x="75"  y="182" width="8" height="28" rx="2" fill="#1A1815" fill-opacity="0.68"/>
+    <rect x="90"  y="178" width="8" height="32" rx="2" fill="#1A1815" fill-opacity="0.80"/>
+    <rect x="105" y="174" width="8" height="36" rx="2" fill="#E5371F" fill-opacity="0.85"/>
+    <rect x="120" y="170" width="8" height="40" rx="2" fill="#E5371F"/>
+    <path d="M141 180 L153 190 L141 200" fill="none" stroke="#E5371F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="330" y="330" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#1A1815">Drag Voulum to Applications</text>
+  <text x="330" y="352" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#1A1815" fill-opacity="0.55">Then open it and look for its icon in your menu bar.</text>
+</svg>
