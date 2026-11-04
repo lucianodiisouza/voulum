@@ -134,8 +134,10 @@ jobs:
       # Copies this repo's canonical Casks/voulum.rb into the tap repo with the
       # new version + the uploaded DMG's sha256. Optional and automatic: skipped
       # until HOMEBREW_TAP_TOKEN and the tap repo exist (see docs/HOMEBREW.md).
+      # Only when this job signed the DMG: an ad-hoc one gets replaced by a
+      # locally notarized build, and its checksum would break the cask.
       - name: Update Homebrew tap
-        if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        if: ${{ env.HAS_TAP_TOKEN == 'true' && env.HAS_CERT == 'true' }}
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
