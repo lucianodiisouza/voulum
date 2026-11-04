@@ -53,7 +53,7 @@ struct SettingsEntry: Identifiable {
         .init(id: "pause-others", title: String(localized: "Pause other apps on play"), tab: .general, keywords: "behavior transport play pause"),
         .init(id: "step", title: String(localized: "Volume step"), tab: .general, keywords: "arrow keys scroll wheel increment"),
         .init(id: "updates", title: String(localized: "Updates"), tab: .general, keywords: "sparkle check version automatic"),
-        .init(id: "onboarding", title: String(localized: "Show welcome tour"), tab: .general, keywords: "onboarding intro tutorial setup"),
+        .init(id: "onboarding", title: String(localized: "Show welcome tour"), tab: .general, keywords: "onboarding intro tutorial setup watch again"),
         .init(id: "pinned", title: String(localized: "Pinned apps"), tab: .apps, keywords: "pin keep"),
         .init(id: "ignored", title: String(localized: "Ignored apps"), tab: .apps, keywords: "ignore hide exclude blacklist"),
         .init(id: "remembered", title: String(localized: "Remembered app settings"), tab: .apps, keywords: "forget reset volume saved"),
@@ -334,8 +334,13 @@ private struct GeneralSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
-                Button("Show Welcome Tour…") { OnboardingWindowController.shared.show() }
-                    .settingsAnchor("onboarding")
+                LabeledContent {
+                    Button("Watch Again") { OnboardingWindowController.shared.show() }
+                } label: {
+                    Text("Welcome tour")
+                    Text("The short intro from the first launch.")
+                }
+                .settingsAnchor("onboarding")
             }
             if updater.isConfigured {
                 Section("Updates") {
@@ -641,6 +646,10 @@ private struct AboutSettings: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Link("github.com/lucianodiisouza/voulum", destination: URL(string: "https://github.com/lucianodiisouza/voulum")!)
+            Button("Watch the Welcome Tour") { OnboardingWindowController.shared.show() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 12)
             Spacer()
         }
         .padding(.top, 30)

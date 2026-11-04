@@ -2401,22 +2401,6 @@
         }
       }
     },
-    "Show Welcome Tour…": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostrar boas-vindas…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostrar bienvenida…"
-          }
-        }
-      }
-    },
     "Show in popup": {
       "localizations": {
         "pt-BR": {
@@ -2653,6 +2637,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "La primera vez que cambies una app, macOS pedirá que Voulum gestione su audio. Elige Permitir."
+          }
+        }
+      }
+    },
+    "The short intro from the first launch.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A apresentação rápida da primeira vez que você abriu o app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La presentación corta de la primera vez que abriste la app."
           }
         }
       }
@@ -3137,6 +3137,38 @@
         }
       }
     },
+    "Watch Again": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver de novo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver otra vez"
+          }
+        }
+      }
+    },
+    "Watch the Welcome Tour": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver as boas-vindas"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver la bienvenida"
+          }
+        }
+      }
+    },
     "Waveform": {
       "localizations": {
         "pt-BR": {
@@ -3165,6 +3197,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Te damos la bienvenida a Voulum"
+          }
+        }
+      }
+    },
+    "Welcome tour": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boas-vindas"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenida"
           }
         }
       }
