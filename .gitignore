@@ -7,3 +7,7 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Sparkle tools and the exported EdDSA private key (never commit it)
+sparkle/
+sparkle_private_key.pem
