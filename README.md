@@ -35,8 +35,10 @@ a glance.
 - A 10-band EQ per app that you shape by **dragging the response curve**.
 - 20 built-in presets (voice, music, listening), plus presets you save yourself.
 
-**Play / pause**
+**Play / pause and what's playing**
 - Pause the app itself, not just its sound. Starting one app can pause the others.
+- Browsers show the tab that's making sound, like a YouTube Music track in
+  Safari, Chrome, Arc or Flecha.
 
 **Keyboard and automation**
 - Global shortcuts for volume up/down, mute and opening the popup. They act on
@@ -49,6 +51,11 @@ a glance.
 **Menu bar**
 - The icon follows your output volume and device.
 - Choose from a few icon styles in Settings.
+- The popup comes in Frosted or, on macOS 26, Liquid Glass. Light and dark
+  follow your Mac.
+
+**Languages**
+- English, Brazilian Portuguese and Spanish.
 
 ## Install
 
@@ -75,6 +82,8 @@ xattr -dr com.apple.quarantine /Applications/Voulum.app
 
 ## First use
 
+- **Welcome tour.** A short tour asks for audio access, shows the apps it hears
+  and lets you pick a look. You can replay it from Settings ▸ General.
 - **Audio permission.** The first time you change an app, macOS asks to let
   Voulum capture its audio. That is how per-app volume works under the hood.
   Click **Allow**. You can review it later in **System Settings ▸ Privacy &
@@ -108,11 +117,12 @@ open "voulum://volume?app=Spotify&level=40"
 **Why doesn't every app get a play/pause button?**
 macOS has no general "pause that app" command. Voulum drives each app through
 its own scripting interface, so only these are supported: Spotify, Apple Music,
-TV, VLC, QuickTime Player, and Safari/Chrome/Brave/Edge/Vivaldi for audio in a
-tab.
+TV, VLC, QuickTime Player, and Safari/Chrome/Brave/Edge/Vivaldi/Arc/Opera/Flecha
+for audio in a tab.
 
 Browsers also need "Allow JavaScript from Apple Events" switched on in their
-Develop/Developer menu. They can't reach a player embedded from another domain.
+Develop/Developer menu to play or pause. Without it Voulum still shows the tab
+title. They can't reach a player embedded from another domain.
 When that happens, Voulum says so instead of pretending it paused.
 
 Volume, mute, routing and EQ work on every app either way.
