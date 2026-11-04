@@ -306,6 +306,43 @@ struct OutputCard: View {
     }
 }
 
+// MARK: - Desk tabs
+
+/// The desk style's Output / Input switch: two silkscreened keys, the chosen
+/// one lit amber.
+private struct DeskTab: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                .textCase(.uppercase)
+                .tracking(1.4)
+                .foregroundStyle(selected ? Color.black.opacity(0.8) : Color.deskCream.opacity(hovering ? 0.85 : 0.55))
+                .padding(.horizontal, 10)
+                .frame(height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(selected ? AnyShapeStyle(Color.deskAmber.gradient)
+                                       : AnyShapeStyle(LinearGradient(colors: [Color(white: hovering ? 0.3 : 0.26), Color(white: 0.15)],
+                                                                      startPoint: .top, endPoint: .bottom)))
+                        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .strokeBorder(Color.black.opacity(0.6), lineWidth: 0.75))
+                        .shadow(color: selected ? Color.deskAmber.opacity(0.5) : .black.opacity(0.6),
+                                radius: selected ? 4 : 1.5, y: selected ? 0 : 1.5)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
 // MARK: - Mic strip
 
 /// The desk style's mic channel: what the current microphone hears, its
@@ -362,15 +399,26 @@ struct DeviceList: View {
     @EnvironmentObject private var devices: DeviceController
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var model: PopupModel
+    @Environment(\.deskStyle) private var desk
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Picker("", selection: $model.showingInputs) {
-                Text("Output").tag(false)
-                Text("Input").tag(true)
+            Group {
+                if desk {
+                    HStack(spacing: 6) {
+                        DeskTab(title: String(localized: "Output"), selected: !model.showingInputs) { model.showingInputs = false }
+                        DeskTab(title: String(localized: "Input"), selected: model.showingInputs) { model.showingInputs = true }
+                        Spacer()
+                    }
+                } else {
+                    Picker("", selection: $model.showingInputs) {
+                        Text("Output").tag(false)
+                        Text("Input").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             .padding(.horizontal, 4)
             .padding(.bottom, 2)
 
@@ -401,7 +449,11 @@ struct DeviceRowView: View {
     let input: Bool
     @EnvironmentObject private var devices: DeviceController
     @EnvironmentObject private var prefs: Preferences
+    @Environment(\.deskStyle) private var desk
     @State private var hovering = false
+
+    /// What marks the device in use: the system accent, or the desk's amber.
+    private var mark: Color { desk ? .deskAmber : .accentColor }
 
     private var isDefault: Bool {
         input ? devices.defaultInputID == device.id : devices.defaultOutputID == device.id
@@ -418,15 +470,15 @@ struct DeviceRowView: View {
                 HStack(spacing: 8) {
                     Image(systemName: device.symbol)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(isDefault ? .white : .primary)
+                        .foregroundStyle(isDefault ? (desk ? Color.black.opacity(0.8) : .white) : .primary)
                         .frame(width: 26, height: 26)
-                        .background(Circle().fill(isDefault ? AnyShapeStyle(Color.accentColor.gradient)
+                        .background(Circle().fill(isDefault ? AnyShapeStyle(mark.gradient)
                                                             : AnyShapeStyle(Color.primary.opacity(0.08))))
                     VStack(alignment: .leading, spacing: 0) {
                         Text(device.name).font(.callout).lineLimit(1)
                         Text(isDefault ? String(localized: "In use · \(device.transportLabel)") : device.transportLabel)
                             .font(.caption2)
-                            .foregroundStyle(isDefault ? Color.accentColor : .secondary)
+                            .foregroundStyle(isDefault ? mark : .secondary)
                     }
                     Spacer(minLength: 4)
                 }
