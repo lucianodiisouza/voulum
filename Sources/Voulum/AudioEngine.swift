@@ -232,9 +232,9 @@ final class AudioEngine: ObservableObject {
         micRunning = desk && MicMeter.accessGranted
         if micRunning {
             let input = devices.defaultInputID
-            halQueue.async { mic.run(device: input) }
+            mic.run(device: input)
         } else {
-            halQueue.async { mic.stop() }
+            mic.stop()
         }
     }
 
