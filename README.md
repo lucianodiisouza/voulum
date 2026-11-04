@@ -24,7 +24,8 @@ a glance.
 
 **Per-app volume**
 - One slider per app, from mute through 100% to a **4× boost**. The boost zone
-  is tinted, and the slider sticks at 100% so it's easy to get back to normal.
+  is tinted, and the slider sticks at 100%, with a click on the trackpad, so
+  it's easy to get back to normal.
 - Settings are remembered per app, so Spotify comes back at the level you left it.
 - Scroll over a slider to nudge it. Double-click the percentage to reset it.
 - **Pin** apps so they stay in the list even when they're quiet. **Ignore** apps
@@ -43,6 +44,12 @@ a glance.
 - A 10-band EQ per app that you shape by **dragging the response curve**.
 - 20 built-in presets (voice, music, listening), plus presets you save yourself.
 
+**Mixing Desk**
+- The default popup style. Each app is a channel with a desk fader and a
+  double LED meter for its left and right levels.
+- The output gets a master meter, and a mic channel shows your input live.
+- The equalizer turns into a graphic EQ with vertical faders.
+
 **Play / pause and what's playing**
 - Pause the app itself, not just its sound. Starting one app can pause the others.
 - Browsers show the tab that's making sound, like a YouTube Music track in
@@ -59,8 +66,9 @@ a glance.
 **Menu bar**
 - The icon follows your output volume and device.
 - Choose from a few icon styles in Settings.
-- The popup comes in Frosted or, on macOS 26, Liquid Glass. Light and dark
-  follow your Mac.
+- The popup comes in Mixing Desk, Frosted or, on macOS 26, Liquid Glass.
+  Mixing Desk is always dark; the others follow your Mac's light or dark mode.
+- The popup's footer shows the version and checks for updates.
 
 **Languages**
 - English, Brazilian Portuguese and Spanish.
