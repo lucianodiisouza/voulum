@@ -125,10 +125,12 @@ jobs:
 
       # --- Upload ------------------------------------------------------------
 
+      # Voulum-macos.dmg is the same file under a fixed name, so
+      # releases/latest/download/Voulum-macos.dmg always gets the newest one.
       - name: Attach .dmg to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "$DMG" --clobber
+        run: gh release upload "$TAG" "$DMG" "$DMG_LATEST" --clobber
 
       # --- Homebrew: bump the cask in the tap (if token present) -------------
       # Copies this repo's canonical Casks/voulum.rb into the tap repo with the

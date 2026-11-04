@@ -30,8 +30,9 @@
 # Sparkle signing key: the one generate_keys stored in your login keychain,
 # or $SPARKLE_KEY_FILE.
 #
-# Output: build/Voulum-v<version>-macos.dmg (path also written to $GITHUB_ENV
-# as DMG when running in Actions) and build/updates/appcast.xml.
+# Output: build/Voulum-v<version>-macos.dmg, the same DMG as
+# build/Voulum-macos.dmg for the stable "latest" link (paths also written to
+# $GITHUB_ENV as DMG and DMG_LATEST in Actions) and build/updates/appcast.xml.
 #
 set -euo pipefail
 
@@ -183,6 +184,11 @@ if $notarize; then
   spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 fi
 
+# A copy under a fixed name, so one link always downloads the newest release:
+# https://github.com/<repo>/releases/latest/download/Voulum-macos.dmg
+DMG_LATEST="${BUILD_DIR}/Voulum-macos.dmg"
+cp "$DMG" "$DMG_LATEST"
+
 # --- 5. Sparkle feed --------------------------------------------------------
 
 if $appcast; then
@@ -200,9 +206,12 @@ if $appcast; then
   "$generate_appcast" ${key_args[@]+"${key_args[@]}"} \
     --download-url-prefix "https://github.com/${repo}/releases/download/v${version}/" \
     "$UPDATES"
-  printf '  Upload both to the v%s release:\n    gh release upload v%s "%s" "%s" --clobber\n' \
-    "$version" "$version" "$DMG" "$UPDATES/appcast.xml"
+  printf '  Upload them to the v%s release:\n    gh release upload v%s "%s" "%s" "%s" --clobber\n' \
+    "$version" "$version" "$DMG" "$DMG_LATEST" "$UPDATES/appcast.xml"
 fi
 
-[[ -n "${GITHUB_ENV:-}" ]] && echo "DMG=$DMG" >> "$GITHUB_ENV"
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "DMG=$DMG" >> "$GITHUB_ENV"
+  echo "DMG_LATEST=$DMG_LATEST" >> "$GITHUB_ENV"
+fi
 printf '\033[1;32m✓\033[0m %s\n' "$DMG"
