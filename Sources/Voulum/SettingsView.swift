@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 enum SettingsTab: String, CaseIterable, Identifiable {
@@ -74,6 +75,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
     private let selection = SettingsSelection()
+    private var titleWatch: AnyCancellable?
 
     func show(tab: SettingsTab? = nil) {
         if let tab { selection.tab = tab }
@@ -100,6 +102,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.setFrameAutosaveName("VoulumSettings")
             window.delegate = self
             if !window.setFrameUsingName("VoulumSettings") { window.center() }
+            // The toolbar title names the page, like System Settings.
+            titleWatch = selection.$tab.sink { [weak window] tab in window?.title = tab.title }
             self.window = window
         }
         // A menu-bar app has no Dock icon; show one while Settings is open so
