@@ -43,6 +43,9 @@ struct PopupView: View {
             footer
         }
         .frame(width: 380)
+        .environment(\.deskStyle, prefs.popupStyle.effective == .desk)
+        // Cream silkscreen instead of white; secondary text follows it.
+        .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
         .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
         .animation(.snappy(duration: 0.22), value: model.expandedEQ)
     }
@@ -53,9 +56,18 @@ struct PopupView: View {
         let apps = engine.visibleApps
         return VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Apps")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                if prefs.popupStyle.effective == .desk {
+                    // Silkscreen, like the labels printed on a desk.
+                    Text("Apps")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .textCase(.uppercase)
+                        .tracking(1.6)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Apps")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
                 if !apps.isEmpty {
                     Text("\(apps.count)")
                         .font(.caption2.weight(.bold).monospacedDigit())
@@ -201,6 +213,7 @@ struct OutputCard: View {
     @EnvironmentObject private var devices: DeviceController
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var model: PopupModel
+    @Environment(\.deskStyle) private var desk
 
     var body: some View {
         let device = devices.defaultOutput
@@ -214,7 +227,7 @@ struct OutputCard: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white)
                         .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color.accentColor.gradient))
+                        .background(Circle().fill(desk ? AnyShapeStyle(Color(red: 0.25, green: 0.23, blue: 0.2).gradient) : AnyShapeStyle(Color.accentColor.gradient)))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(device?.name ?? String(localized: "No output device"))
                             .font(.headline)
@@ -238,16 +251,24 @@ struct OutputCard: View {
             if let device {
                 if level.adjustable {
                     HStack(spacing: 6) {
-                        IconButton(systemName: level.muted ? "speaker.slash.fill" : "speaker.fill",
-                                   help: level.muted ? String(localized: "Unmute output") : String(localized: "Mute output"),
-                                   active: level.muted, tint: .red, size: 22) {
-                            devices.toggleMute(device)
+                        if desk {
+                            DeskKey(label: "M",
+                                    help: level.muted ? String(localized: "Unmute output") : String(localized: "Mute output"),
+                                    active: level.muted) {
+                                devices.toggleMute(device)
+                            }
+                        } else {
+                            IconButton(systemName: level.muted ? "speaker.slash.fill" : "speaker.fill",
+                                       help: level.muted ? String(localized: "Unmute output") : String(localized: "Mute output"),
+                                       active: level.muted, tint: .red, size: 22) {
+                                devices.toggleMute(device)
+                            }
                         }
                         VolumeSlider(value: Binding(get: { level.volume },
                                                     set: { devices.setVolume($0, for: device) }),
                                      muted: level.muted, step: prefs.volumeStep.fraction)
                         Text(level.muted ? String(localized: "Muted") : level.volume.percentLabel)
-                            .font(.system(.caption, design: .rounded).weight(.semibold).monospacedDigit())
+                            .font(.system(.caption, design: desk ? .monospaced : .rounded).weight(.semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 42, alignment: .trailing)
                     }

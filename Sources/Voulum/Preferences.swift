@@ -70,12 +70,16 @@ enum PopupStyle: String, CaseIterable, Codable, Identifiable {
     case standard
     /// macOS 26 Liquid Glass: clearer, refracting what's behind it.
     case glass
+    /// A dark mixing desk: LED meters over the faders, square mute keys.
+    /// Always dark, whatever the Mac is set to.
+    case desk
 
     var id: String { rawValue }
     var title: String {
         switch self {
         case .standard: return String(localized: "Frosted")
         case .glass: return String(localized: "Liquid Glass")
+        case .desk: return String(localized: "Mixing Desk")
         }
     }
     static var glassAvailable: Bool {

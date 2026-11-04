@@ -1,6 +1,18 @@
 import AppKit
 import SwiftUI
 
+extension EnvironmentValues {
+    /// The popup is drawn as a mixing desk (`PopupStyle.desk`).
+    @Entry var deskStyle = false
+}
+
+extension Color {
+    /// The desk's amber: unity marks, the boost zone, warnings.
+    static let deskAmber = Color(red: 1, green: 0.69, blue: 0.13)
+    /// Old silkscreen and bone-coloured plastic: the desk's text, caps and keys.
+    static let deskCream = Color(red: 0.93, green: 0.9, blue: 0.82)
+}
+
 // MARK: - Volume slider
 
 /// Voulum's slider. One control covers the whole range: the first three
@@ -17,6 +29,7 @@ struct VolumeSlider: View {
 
     @State private var dragging = false
     @State private var hovering = false
+    @Environment(\.deskStyle) private var desk
 
     private var hasBoost: Bool { maxValue > 1 }
     /// Track fraction where 100% sits.
@@ -40,29 +53,12 @@ struct VolumeSlider: View {
             let width = geo.size.width
             let pos = position(for: muted ? 0 : value)
             let thumb: CGFloat = dragging ? 16 : 14
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.12)).frame(height: 5)
-                if hasBoost {
-                    // The boost zone reads as "extra", not as more of the same.
-                    Capsule()
-                        .fill(Color.orange.opacity(0.18))
-                        .frame(width: width * (1 - unityPosition), height: 5)
-                        .offset(x: width * unityPosition)
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.35))
-                        .frame(width: 1.5, height: 9)
-                        .offset(x: width * unityPosition - 0.75)
+            Group {
+                if desk {
+                    deskFader(width: width, pos: pos)
+                } else {
+                    roundSlider(width: width, pos: pos, thumb: thumb)
                 }
-                Capsule()
-                    .fill(fillStyle)
-                    .frame(width: max(5, width * pos), height: 5)
-                Circle()
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.25), radius: 1.5, y: 0.5)
-                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
-                    .frame(width: thumb, height: thumb)
-                    .offset(x: min(max(0, width * pos - thumb / 2), width - thumb))
-                    .opacity(hovering || dragging ? 1 : 0.92)
             }
             .frame(height: geo.size.height)
             .contentShape(Rectangle())
@@ -81,7 +77,7 @@ struct VolumeSlider: View {
                 value = min(maxValue, max(0, (muted ? 0 : value) + (delta > 0 ? step : -step)))
             })
         }
-        .frame(height: 18)
+        .frame(height: desk ? 31 : 18)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: dragging)
         .accessibilityElement()
@@ -92,6 +88,78 @@ struct VolumeSlider: View {
             case .decrement: value = max(0, value - step)
             @unknown default: break
             }
+        }
+    }
+
+    /// A fader on a desk: a recessed slot with its scale printed under it
+    /// (∞, U for unity in amber, 4×) and a chunky ribbed cap. No fill: the
+    /// cap's place is the reading, and the meter above shows the sound.
+    private func deskFader(width: CGFloat, pos: CGFloat) -> some View {
+        let cap = CGSize(width: 15, height: 22)
+        let label = Font.system(size: 7.5, weight: .medium, design: .monospaced)
+        return VStack(spacing: 1) {
+            ZStack(alignment: .leading) {
+                ForEach([0, 0.25, 0.5, 0.75], id: \.self) { mark in
+                    Rectangle()
+                        .fill(Color.white.opacity(0.13))
+                        .frame(width: 1, height: 12)
+                        .offset(x: width * position(for: Float(mark)) - 0.5)
+                }
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.black)
+                    .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.white.opacity(0.08), lineWidth: 0.5).offset(y: 0.5))
+                    .frame(height: 4)
+                if hasBoost {
+                    Rectangle()
+                        .fill(Color.deskAmber.opacity(0.85))
+                        .frame(width: 1.5, height: 14)
+                        .offset(x: width * unityPosition - 0.75)
+                }
+                DeskFaderCap(muted: muted, pressed: dragging)
+                    .frame(width: cap.width, height: cap.height)
+                    .offset(x: min(max(0, width * pos - cap.width / 2), width - cap.width))
+            }
+            .frame(height: cap.height)
+            ZStack(alignment: .leading) {
+                Text(verbatim: "∞")
+                if hasBoost {
+                    Text(verbatim: "U").foregroundStyle(Color.deskAmber).offset(x: width * unityPosition - 2.5)
+                    Text(verbatim: "4×").frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    Text(verbatim: "U").foregroundStyle(Color.deskAmber).frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .font(label)
+            .foregroundStyle(.tertiary)
+            .frame(height: 8)
+        }
+    }
+
+    private func roundSlider(width: CGFloat, pos: CGFloat, thumb: CGFloat) -> some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.primary.opacity(0.12)).frame(height: 5)
+            if hasBoost {
+                // The boost zone reads as "extra", not as more of the same.
+                Capsule()
+                    .fill(Color.orange.opacity(0.18))
+                    .frame(width: width * (1 - unityPosition), height: 5)
+                    .offset(x: width * unityPosition)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.35))
+                    .frame(width: 1.5, height: 9)
+                    .offset(x: width * unityPosition - 0.75)
+            }
+            Capsule()
+                .fill(fillStyle)
+                .frame(width: max(5, width * pos), height: 5)
+            Circle()
+                .fill(.white)
+                .shadow(color: .black.opacity(0.25), radius: 1.5, y: 0.5)
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
+                .frame(width: thumb, height: thumb)
+                .offset(x: min(max(0, width * pos - thumb / 2), width - thumb))
+                .opacity(hovering || dragging ? 1 : 0.92)
         }
     }
 
@@ -199,8 +267,112 @@ struct AppIconWithLevel: View {
         .frame(width: size + 4, height: size + 4)
     }
 
+    @Environment(\.deskStyle) private var desk
+
     private var levelColor: Color {
-        clipping ? .orange : .green
+        if desk { return clipping ? .deskAmber : Color(red: 0.62, green: 0.88, blue: 0.36) }
+        return clipping ? .orange : .green
+    }
+}
+
+// MARK: - Desk parts
+
+/// The desk style's meter: two rows of square LEDs, left over right, set in
+/// a black well. Green, then amber, then red at the top of the scale; levels
+/// are 0...1 on the same scale as the level ring.
+struct LEDMeter: View {
+    var left: Float
+    var right: Float
+    var clipping = false
+    var segments = 24
+
+    var body: some View {
+        VStack(spacing: 2) {
+            row(left)
+            row(right)
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color.black.opacity(0.85))
+                .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 0.5))
+        )
+        .accessibilityHidden(true)
+    }
+
+    private func row(_ level: Float) -> some View {
+        let lit = Int((level * Float(segments)).rounded())
+        return HStack(spacing: 2) {
+            ForEach(0..<segments, id: \.self) { i in
+                let on = i < lit || (clipping && i == segments - 1)
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(on ? color(i) : Color(white: 0.15))
+                    .shadow(color: on ? color(i).opacity(0.55) : .clear, radius: 1.5)
+            }
+        }
+        .frame(height: 5)
+    }
+
+    private func color(_ i: Int) -> Color {
+        if i >= segments - 2 { return Color(red: 1, green: 0.27, blue: 0.2) }
+        if i >= segments - 5 { return .deskAmber }
+        return Color(red: 0.42, green: 0.95, blue: 0.36)
+    }
+}
+
+/// A desk fader cap: a dark block lit from above, with its white line.
+struct DeskFaderCap: View {
+    var muted = false
+    var pressed = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(LinearGradient(colors: [Color(white: pressed ? 0.42 : 0.37), Color(white: 0.16)],
+                                 startPoint: .top, endPoint: .bottom))
+            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.22), .black.opacity(0.6)],
+                                             startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
+            .overlay(Rectangle()
+                .fill(Color.white.opacity(muted ? 0.3 : 0.92))
+                .frame(width: 2, height: 13))
+            .shadow(color: .black.opacity(0.7), radius: 2.5, y: 2)
+    }
+}
+
+/// The desk style's square key, lit from inside when on (mute, mostly).
+struct DeskKey: View {
+    let label: String
+    var help: String
+    var active = false
+    var tint: Color = .red
+    var size: CGFloat = 22
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(verbatim: label)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(active ? Color.white : Color.deskCream.opacity(hovering ? 0.85 : 0.55))
+                .frame(width: size, height: size)
+                .background(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(active ? AnyShapeStyle(tint.gradient)
+                                     : AnyShapeStyle(LinearGradient(colors: [Color(white: hovering ? 0.3 : 0.26), Color(white: 0.15)],
+                                                                    startPoint: .top, endPoint: .bottom)))
+                        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .strokeBorder(LinearGradient(colors: [.white.opacity(0.16), .black.opacity(0.6)],
+                                                         startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
+                        .shadow(color: active ? tint.opacity(0.7) : .black.opacity(0.6), radius: active ? 5 : 1.5, y: active ? 0 : 1.5)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 
@@ -216,15 +388,19 @@ struct IconButton: View {
     let action: () -> Void
 
     @State private var hovering = false
+    @Environment(\.deskStyle) private var desk
+
+    /// On the desk, "on" lights amber instead of the system accent.
+    private var color: Color { desk && tint == .accentColor ? .deskAmber : tint }
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: size * 0.5, weight: .medium))
-                .foregroundStyle(active ? tint : Color.secondary)
+                .foregroundStyle(active ? color : Color.secondary)
                 .frame(width: size, height: size)
                 .background(
-                    Circle().fill(active ? tint.opacity(0.16) : Color.primary.opacity(hovering ? 0.09 : 0))
+                    Circle().fill(active ? color.opacity(0.16) : Color.primary.opacity(hovering ? 0.09 : 0))
                 )
                 .contentShape(Circle())
         }

@@ -1489,6 +1489,38 @@
         }
       }
     },
+    "Mixing Desk": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mesa de som"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mesa de mezclas"
+          }
+        }
+      }
+    },
+    "Mixing Desk puts a live LED meter on every fader. It stays dark, whatever your Mac is set to.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Mesa de som põe um medidor de LED em cada fader. Ela fica sempre escura, não importa o tema do Mac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La Mesa de mezclas pone un medidor LED en cada fader. Siempre es oscura, sea cual sea el tema del Mac."
+          }
+        }
+      }
+    },
     "More": {
       "localizations": {
         "pt-BR": {
@@ -3053,6 +3085,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dispositivo desconocido"
+          }
+        }
+      }
+    },
+    "Unmute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ativar som"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activar sonido"
           }
         }
       }

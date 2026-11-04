@@ -72,6 +72,7 @@ final class PopupPanel: NSPanel {
         // Glass draws its own rim and depth; a window shadow would trace the
         // panel's square frame around the rounded glass.
         hasShadow = style.effective != .glass
+        appearance = style.effective == .desk ? NSAppearance(named: .darkAqua) : nil
         invalidateShadow()
         DispatchQueue.main.async { [weak self] in self?.invalidateShadow() }
     }
@@ -81,6 +82,17 @@ final class PopupPanel: NSPanel {
             let glass = NSGlassEffectView()
             glass.cornerRadius = cornerRadius
             return glass
+        }
+        if style == .desk {
+            // A solid panel, like the desk's metal: nothing shows through.
+            let panel = DeskBackdrop()
+            panel.wantsLayer = true
+            panel.layer?.borderColor = NSColor.white.withAlphaComponent(0.09).cgColor
+            panel.layer?.borderWidth = 1
+            panel.layer?.cornerRadius = cornerRadius
+            panel.layer?.cornerCurve = .continuous
+            panel.layer?.masksToBounds = true
+            return panel
         }
         let frosted = NSVisualEffectView()
         frosted.material = .popover
@@ -118,4 +130,41 @@ final class PopupPanel: NSPanel {
         setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
         invalidateShadow()
     }
+}
+
+/// The desk style's panel: warm dark metal with a fine grain and a lit top
+/// edge, the way light catches the front of an old console.
+private final class DeskBackdrop: NSView {
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let r = PopupPanel.cornerRadius
+        let shape = NSBezierPath(roundedRect: bounds, xRadius: r, yRadius: r)
+        shape.addClip()
+        NSGradient(starting: NSColor(srgbRed: 0.14, green: 0.125, blue: 0.105, alpha: 1),
+                   ending: NSColor(srgbRed: 0.075, green: 0.068, blue: 0.058, alpha: 1))?
+            .draw(in: bounds, angle: 90)
+        NSColor(patternImage: Self.grain).setFill()
+        bounds.fill(using: .sourceOver)
+        NSColor.white.withAlphaComponent(0.1).setFill()
+        NSRect(x: r, y: 0, width: bounds.width - r * 2, height: 1).fill(using: .sourceOver)
+    }
+
+    /// A tile of random light and dark specks, a few percent opaque.
+    private static let grain: NSImage = {
+        let side = 128
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                   bitsPerSample: 8, samplesPerPixel: 2, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceWhite, bytesPerRow: side * 2, bitsPerPixel: 16)!
+        let data = rep.bitmapData!
+        for i in 0..<(side * side) {
+            let alpha = UInt8.random(in: 0...14)
+            // Premultiplied: half the specks light, half dark.
+            data[i * 2] = Bool.random() ? alpha : 0
+            data[i * 2 + 1] = alpha
+        }
+        let image = NSImage(size: NSSize(width: side / 2, height: side / 2))
+        image.addRepresentation(rep)
+        return image
+    }()
 }
