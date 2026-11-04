@@ -1,7 +1,15 @@
+<p align="center">
+  <img src="docs/images/icon.png" width="128" alt="Voulum icon">
+</p>
+
 <h1 align="center">Voulum</h1>
 
 <p align="center">
   <em>Per-app volume, routing and EQ for macOS, from your menu bar.</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/popup.png" width="426" alt="The Voulum popup with Flecha, Safari and Spotify playing, each with its own volume slider">
 </p>
 
 macOS gives you one volume knob for everything. Voulum adds the missing mixer.
@@ -57,7 +65,27 @@ a glance.
 **Languages**
 - English, Brazilian Portuguese and Spanish.
 
+## A look around
+
+**Welcome tour.** Three quick steps on first launch: allow audio access, see the
+apps Voulum hears, pick a look.
+
+<p align="center">
+  <img src="docs/images/welcome-listen.png" width="32%" alt="Welcome tour asking for audio access">
+  <img src="docs/images/welcome-apps.png" width="32%" alt="Welcome tour showing the apps playing right now">
+  <img src="docs/images/welcome-look.png" width="32%" alt="Welcome tour with the Frosted and Liquid Glass styles">
+</p>
+
+**Settings.** A sidebar with search, so any option is a few keystrokes away.
+
+<p align="center">
+  <img src="docs/images/settings-general.png" width="49%" alt="General settings">
+  <img src="docs/images/settings-shortcuts.png" width="49%" alt="Shortcut settings">
+</p>
+
 ## Install
+
+### Download
 
 1. Download **`Voulum-vX.Y.Z-macos.dmg`** from the
    [latest release](../../releases/latest) and open it.
@@ -68,6 +96,14 @@ Voulum is signed with a Developer ID and notarized by Apple, so it opens like
 any other app. Updates install from inside the app.
 
 Requires **macOS 14.4** or newer.
+
+### Homebrew
+
+```bash
+brew install --cask lucianodiisouza/voulum/voulum
+```
+
+Update it with `brew upgrade --cask voulum`, or let the app update itself.
 
 <details>
 <summary>Installing an older, unsigned release?</summary>
@@ -90,6 +126,11 @@ xattr -dr com.apple.quarantine /Applications/Voulum.app
   Security**.
 - **Settings.** Open them from the popup's footer (⌘,). They cover launch at
   login, icon style, volume step, devices, shortcuts and your EQ presets.
+- **Watch the tour again** from Settings ▸ About, or from the terminal:
+
+  ```bash
+  open "voulum://settings?tab=about"
+  ```
 
 ## Automation
 
@@ -140,9 +181,55 @@ Apps you haven't changed are never tapped.
 No. There's no kernel extension or driver to install. Quit Voulum and every app
 goes straight back to normal.
 
+## Troubleshooting
+
+**Voulum doesn't see an app, or volume changes do nothing.** Check that Voulum
+is on in **System Settings ▸ Privacy & Security ▸ Screen & System Audio
+Recording**. To start over and get the permission prompt again:
+
+```bash
+tccutil reset All com.voulum.app
+```
+
+**Logs.** Voulum logs to the unified log:
+
+```bash
+log stream --predicate 'subsystem == "com.voulum.app"' --level info
+```
+
+**Start fresh.** Quit Voulum, then clear its saved settings (volumes, presets,
+shortcuts):
+
+```bash
+defaults delete com.voulum.app
+```
+
+## Uninstall
+
+Quit Voulum from the popup, then:
+
+```bash
+rm -rf /Applications/Voulum.app
+defaults delete com.voulum.app
+tccutil reset All com.voulum.app
+```
+
+With Homebrew, `brew uninstall --cask --zap voulum` removes the app and its settings.
+
 ## Building it yourself
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+```bash
+brew install xcodegen
+git clone https://github.com/lucianodiisouza/voulum.git
+cd voulum
+xcodegen generate
+xcodebuild -project Voulum.xcodeproj -scheme Voulum -configuration Debug \
+  -derivedDataPath build build
+open build/Build/Products/Debug/Voulum.app
+```
+
+More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): architecture, the self-test
+and how releases are signed.
 
 ## License
 
