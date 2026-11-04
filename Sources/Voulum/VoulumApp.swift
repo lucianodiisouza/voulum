@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         HotkeyCenter.shared.apply(prefs.hotkeys)
         _ = Self.updater
+        if OnboardingWindowController.needsOnboarding { OnboardingWindowController.shared.show() }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

@@ -324,6 +324,10 @@ private struct GeneralSettings: View {
                 Text("Used by the arrow keys, the scroll wheel and the volume shortcuts.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section {
+                Button("Show Welcome Tour…") { OnboardingWindowController.shared.show() }
+                    .settingsAnchor("onboarding")
+            }
             if updater.isConfigured {
                 Section("Updates") {
                     Toggle("Check for updates automatically", isOn: Binding(

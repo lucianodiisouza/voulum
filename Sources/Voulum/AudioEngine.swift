@@ -345,6 +345,9 @@ final class AudioEngine: ObservableObject {
         level <= 1 ? level * level : level
     }
 
+    /// The welcome tour's probe heard audio, so access is granted.
+    func markPermissionGranted() { notePermissionGranted() }
+
     private func notePermissionGranted() {
         guard !audioPermissionGranted else { return }
         audioPermissionGranted = true
