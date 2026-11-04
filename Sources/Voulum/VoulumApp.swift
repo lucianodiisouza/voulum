@@ -34,6 +34,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Two copies would fight over the same taps (each muting the app and
+        // replaying it), so a second launch hands over to the first and quits.
+        let me = NSRunningApplication.current
+        if let bundleID = Bundle.main.bundleIdentifier,
+           NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+               .contains(where: { $0 != me && !$0.isTerminated }) {
+            log.info("Another Voulum is already running; quitting this one")
+            NSApp.terminate(nil)
+            return
+        }
+
         DeviceController.shared.start()
         AudioEngine.shared.start()
         StatusItemController.shared.install()
