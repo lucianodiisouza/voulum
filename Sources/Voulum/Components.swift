@@ -168,6 +168,8 @@ struct AppIconWithLevel: View {
     /// Playing but not metered (Voulum leaves untouched apps alone, so there's
     /// no signal to read): breathe gently instead of showing a level.
     var playing = false
+    /// Signal touching full scale.
+    var clipping = false
     var size: CGFloat = 30
 
     @State private var breathe = false
@@ -198,7 +200,7 @@ struct AppIconWithLevel: View {
     }
 
     private var levelColor: Color {
-        level > 0.93 ? .orange : .green
+        clipping ? .orange : .green
     }
 }
 

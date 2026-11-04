@@ -36,10 +36,10 @@ final class AppTap: @unchecked Sendable {
     private let ioQueue = DispatchQueue(label: "com.voulum.tap.io", qos: .userInteractive)
 
     /// [0] target gain, [1] current (ramped) gain, [2] peak since last read,
-    /// [3] limiter on (0/1).
+    /// [3] limiter on (0/1), [4] loudest buffer RMS since last read.
     private let shared: UnsafeMutablePointer<Float> = {
-        let p = UnsafeMutablePointer<Float>.allocate(capacity: 4)
-        p.initialize(from: [1, 1, 0, 0], count: 4)
+        let p = UnsafeMutablePointer<Float>.allocate(capacity: 5)
+        p.initialize(from: [1, 1, 0, 0, 0], count: 5)
         return p
     }()
 
@@ -76,11 +76,12 @@ final class AppTap: @unchecked Sendable {
         set { shared[3] = newValue ? 1 : 0 }
     }
 
-    /// Peak sample magnitude since the previous call (0...~1).
-    func takePeak() -> Float {
-        let p = shared[2]
+    /// Loudest buffer RMS and sample peak since the previous call (0...~1).
+    func takeLevels() -> (rms: Float, peak: Float) {
+        let levels = (shared[4], shared[2])
         shared[2] = 0
-        return p
+        shared[4] = 0
+        return levels
     }
 
     // MARK: Lifecycle (HAL queue)
@@ -323,6 +324,7 @@ final class AppTap: @unchecked Sendable {
             // 4. Soft limiter (only when boosting), then metering.
             let limit = shared[3] != 0
             var peak: Float = 0
+            var sumSquares: Float = 0
             let knee: Float = 0.89
             for i in 0..<(frames * 2) {
                 var x = scratch[i]
@@ -336,8 +338,11 @@ final class AppTap: @unchecked Sendable {
                 }
                 let a = abs(x)
                 if a > peak { peak = a }
+                sumSquares += x * x
             }
             if peak > shared[2] { shared[2] = peak }
+            let rms = (sumSquares / Float(frames * 2)).squareRoot()
+            if rms > shared[4] { shared[4] = rms }
         }
 
         // 5. Fan out to every output buffer, mapping L/R onto device channels.

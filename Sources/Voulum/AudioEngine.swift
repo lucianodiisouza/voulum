@@ -186,7 +186,7 @@ final class AudioEngine: ObservableObject {
         }
         meters.start { [weak self] in
             guard let self else { return [:] }
-            return self.taps.mapValues { $0.isActive ? $0.takePeak() : 0 }
+            return self.taps.mapValues { $0.isActive ? $0.takeLevels() : (0, 0) }
         }
     }
 
@@ -519,22 +519,28 @@ private func prettyBundleName(_ bundleID: String) -> String {
 @MainActor
 final class LevelMeters: ObservableObject {
     @Published private(set) var levels: [String: Float] = [:]
+    /// Apps whose signal is touching full scale — the ring turns orange.
+    @Published private(set) var hot: Set<String> = []
     private var timer: Timer?
 
-    func start(sample: @escaping () -> [String: Float]) {
+    func start(sample: @escaping () -> [String: (rms: Float, peak: Float)]) {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 var next: [String: Float] = [:]
-                for (key, peak) in sample() {
-                    // Map to a perceptual 0...1 (−48 dB floor).
-                    let db = 20 * log10(max(peak, 1e-5))
-                    let target = max(0, min(1, (db + 48) / 48))
+                var nextHot: Set<String> = []
+                for (key, value) in sample() {
+                    // Loudness (RMS) on a −54…−6 dBFS scale, so typical music
+                    // sits mid-ring and moves with the beat instead of pinning.
+                    let db = 20 * log10(max(value.rms, 1e-6))
+                    let target = max(0, min(1, (db + 54) / 48))
                     let previous = self.levels[key] ?? 0
-                    next[key] = target > previous ? target : max(target, previous - 0.06)
+                    next[key] = target > previous ? target : max(target, previous - 0.05)
+                    if value.peak > 0.98 { nextHot.insert(key) }
                 }
                 if next != self.levels { self.levels = next }
+                if nextHot != self.hot { self.hot = nextHot }
             }
         }
     }
@@ -543,5 +549,6 @@ final class LevelMeters: ObservableObject {
         timer?.invalidate()
         timer = nil
         levels = [:]
+        hot = []
     }
 }
