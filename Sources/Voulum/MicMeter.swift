@@ -1,15 +1,27 @@
 import AVFoundation
 import CoreAudio
 import Foundation
+import os
 
 /// Reads the current microphone's level for the desk style's mic channel.
 /// It listens to the input device directly, so it needs microphone access
 /// and macOS shows its orange dot while it runs: only while the popup is
-/// open in that style. Lifecycle calls belong on the engine's HAL queue.
+/// open in that style.
+///
+/// Starting an input device can block for a long time inside Core Audio
+/// (seen stuck in `AudioDeviceStart` for minutes on the built-in mic), so
+/// the meter starts and stops on its own queue, never the engine's HAL
+/// queue: a stuck mic must not hold up the app taps behind it. Requests
+/// only record the wanted device; whatever is wanted once the queue frees
+/// up is what runs.
 final class MicMeter: @unchecked Sendable {
+    /// Touched only on `control`.
     private var deviceID: AudioObjectID = .unknown
     private var procID: AudioDeviceIOProcID?
     private let ioQueue = DispatchQueue(label: "dev.oprimo.voulum.mic.io", qos: .userInitiated)
+    private let control = DispatchQueue(label: "dev.oprimo.voulum.mic.control", qos: .userInitiated)
+    /// The device the meter should listen to, `.unknown` for off.
+    private let wanted = OSAllocatedUnfairLock<AudioObjectID>(initialState: .unknown)
 
     /// [0] / [1] loudest left / right RMS since last read, [2] peak.
     private let shared: UnsafeMutablePointer<Float> = {
@@ -19,7 +31,8 @@ final class MicMeter: @unchecked Sendable {
     }()
 
     deinit {
-        stop()
+        // Queued blocks retain `self`, so none are pending by now.
+        apply(.unknown)
         shared.deallocate()
     }
 
@@ -35,9 +48,25 @@ final class MicMeter: @unchecked Sendable {
     }
 
     /// Listen to `device`, switching when the default input changes.
-    func run(device: AudioObjectID) {
+    /// Returns at once; the device starts on the meter's own queue.
+    func run(device: AudioObjectID) { request(device) }
+
+    func stop() { request(.unknown) }
+
+    private func request(_ device: AudioObjectID) {
+        let changed = wanted.withLock { current in
+            defer { current = device }
+            return current != device
+        }
+        guard changed else { return }
+        control.async { [self] in apply(wanted.withLock { $0 }) }
+    }
+
+    private func apply(_ device: AudioObjectID) {
         guard device != deviceID else { return }
-        stop()
+        // If it doesn't start, forget the request so the next poll retries.
+        defer { if deviceID != device { wanted.withLock { if $0 == device { $0 = .unknown } } } }
+        stopNow()
         guard device.isValid else { return }
         let shared = self.shared
         var newProc: AudioDeviceIOProcID?
@@ -48,7 +77,10 @@ final class MicMeter: @unchecked Sendable {
             log.error("Mic meter off: IOProc failed (\(status))")
             return
         }
+        let started = Date()
         status = AudioDeviceStart(device, newProc)
+        let took = Date().timeIntervalSince(started)
+        if took > 1 { log.warning("Mic meter took \(took, format: .fixed(precision: 1))s to start") }
         guard status == noErr else {
             AudioDeviceDestroyIOProcID(device, newProc)
             log.error("Mic meter off: start failed (\(status))")
@@ -58,7 +90,7 @@ final class MicMeter: @unchecked Sendable {
         procID = newProc
     }
 
-    func stop() {
+    private func stopNow() {
         if let procID, deviceID.isValid {
             AudioDeviceStop(deviceID, procID)
             AudioDeviceDestroyIOProcID(deviceID, procID)
