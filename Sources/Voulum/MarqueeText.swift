@@ -21,8 +21,12 @@ struct MarqueeText: View {
     /// Scroll speed, in points per second. Deliberately slow so it reads easily.
     private let velocity: Double = 28
 
+    /// Rest at the start of each pass so the beginning can be read.
+    private let pause: Double = 2
+
     @State private var textWidth: CGFloat = 0
-    @State private var offset: CGFloat = 0
+    /// When the current pass began; reset whenever the text changes.
+    @State private var start = Date()
 
     var body: some View {
         // Invisible sizer: a normal truncating line. Defines height + a sane,
@@ -32,31 +36,41 @@ struct MarqueeText: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay { visible }
             .background { widthProbe }
+            .onChange(of: text) { _, _ in start = Date() }
     }
 
     /// The visible layer: measures the space it's been given and either shows a
     /// static line or the scrolling pair, always clipped to that width.
+    ///
+    /// The scroll position is computed from the clock rather than animated: a
+    /// `repeatForever` animation also captures any layout change in flight when
+    /// it starts (the popover sliding in), which left titles stuck mid-row.
     private var visible: some View {
         GeometryReader { geo in
             let overflowing = textWidth > geo.size.width + 1
             Group {
                 if overflowing {
-                    HStack(spacing: spacing) {
-                        lineText.fixedSize()
-                        lineText.fixedSize()
+                    TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                        HStack(spacing: spacing) {
+                            lineText.fixedSize()
+                            lineText.fixedSize()
+                        }
+                        .offset(x: offset(at: context.date))
                     }
-                    .offset(x: offset)
                 } else {
                     lineText
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
             .clipped()
-            .onAppear { resync(width: geo.size.width) }
-            .onChange(of: text) { _, _ in resync(width: geo.size.width) }
-            .onChange(of: textWidth) { _, _ in resync(width: geo.size.width) }
-            .onChange(of: geo.size.width) { _, w in resync(width: w) }
         }
+    }
+
+    private func offset(at date: Date) -> CGFloat {
+        let distance = Double(textWidth + spacing)
+        let travel = distance / velocity
+        let t = date.timeIntervalSince(start).truncatingRemainder(dividingBy: travel + pause)
+        return t < pause ? 0 : -CGFloat((t - pause) * velocity)
     }
 
     /// Measures the full (untruncated) text width without affecting layout —
@@ -79,16 +93,5 @@ struct MarqueeText: View {
             .font(font)
             .fontWeight(weight)
             .lineLimit(1)
-    }
-
-    /// (Re)start the loop for the current text/size. Called on every size or
-    /// text change so a new song restarts the scroll from the beginning.
-    private func resync(width: CGFloat) {
-        offset = 0
-        guard textWidth > width + 1 else { return }
-        let distance = textWidth + spacing
-        withAnimation(.linear(duration: Double(distance) / velocity).repeatForever(autoreverses: false)) {
-            offset = -distance
-        }
     }
 }
