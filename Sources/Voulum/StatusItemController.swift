@@ -124,8 +124,12 @@ final class StatusItemController: NSObject {
 
     private func reposition() {
         guard let button = statusItem?.button, let host else { return }
-        var size = host.preferredContentSize
-        if size.width < 1 || size.height < 1 { size = host.view.fittingSize }
+        // Measure the content directly: before its first layout the hosting
+        // controller reports a zero preferred size, which used to open an
+        // invisible popup right after launch.
+        var size = host.sizeThatFits(in: NSSize(width: 380, height: 10_000))
+        if size.height < 1 { size = host.view.fittingSize }
+        guard size.width >= 1, size.height >= 1 else { return }
         panel.position(below: button, size: size)
     }
 
