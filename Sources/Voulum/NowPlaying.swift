@@ -7,7 +7,7 @@ struct NowPlaying: Equatable {
     let album: String?
     let isPlaying: Bool
 
-    /// One-line description under the title: "Artist — Album", or whichever half
+    /// One-line description under the title: "Artist · Album", or whichever half
     /// we actually have. Empty when the app exposes no artist/album (e.g. VLC),
     /// in which case the UI falls back to the app name.
     var subtitle: String {
