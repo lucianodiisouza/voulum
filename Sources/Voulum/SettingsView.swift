@@ -104,8 +104,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             // Full-height translucent sidebar under a unified toolbar.
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.toolbar = NSToolbar(identifier: "settings")
+            // Keep the titlebar's own material: content scrolls under a blur
+            // instead of colliding with the page title.
             window.toolbarStyle = .unified
-            window.titlebarAppearsTransparent = true
             window.setContentSize(NSSize(width: 780, height: 540))
             window.contentMinSize = NSSize(width: 680, height: 440)
             window.isReleasedWhenClosed = false
