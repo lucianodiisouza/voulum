@@ -9,7 +9,12 @@ import SwiftUI
 final class PopupPanel: NSPanel {
     static let cornerRadius: CGFloat = 16
 
+    /// The SwiftUI content. Its controller is owned by the caller; the panel
+    /// only re-parents the view when the backdrop changes.
+    private let hosted: NSView
+
     init(content: NSViewController) {
+        hosted = content.view
         super.init(contentRect: NSRect(x: 0, y: 0, width: 380, height: 300),
                    styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
                    backing: .buffered, defer: true)
@@ -23,18 +28,6 @@ final class PopupPanel: NSPanel {
         animationBehavior = .utilityWindow
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
 
-        contentViewController = content
-        let hosted = content.view
-        hosted.translatesAutoresizingMaskIntoConstraints = false
-        let container = NSView()
-        container.addSubview(hosted)
-        NSLayoutConstraint.activate([
-            hosted.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            hosted.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            hosted.topAnchor.constraint(equalTo: container.topAnchor),
-            hosted.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
-        contentView = container
         apply(.standard)
     }
 
@@ -43,14 +36,23 @@ final class PopupPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// Swap the backdrop the content sits on.
+    /// Swap the backdrop the content sits on. The SwiftUI content is placed
+    /// *inside* it: Liquid Glass only draws around a view that is its
+    /// `contentView`, and vibrancy works the same way for the frosted style.
     func apply(_ style: PopupStyle) {
-        guard let container = contentView, let hosted = contentViewController?.view else { return }
-        container.subviews.filter { $0 !== hosted }.forEach { $0.removeFromSuperview() }
+        let size = frame.size
+        hosted.removeFromSuperview()
+        hosted.translatesAutoresizingMaskIntoConstraints = true
+        hosted.autoresizingMask = [.width, .height]
         let backdrop = Self.backdrop(for: style.effective)
-        backdrop.frame = container.bounds
-        backdrop.autoresizingMask = [.width, .height]
-        container.addSubview(backdrop, positioned: .below, relativeTo: hosted)
+        if #available(macOS 26, *), let glass = backdrop as? NSGlassEffectView {
+            glass.contentView = hosted
+        } else {
+            hosted.frame = backdrop.bounds
+            backdrop.addSubview(hosted)
+        }
+        contentView = backdrop
+        setContentSize(size)
         invalidateShadow()
     }
 
