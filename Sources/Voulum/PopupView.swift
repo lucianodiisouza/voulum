@@ -83,12 +83,13 @@ struct PopupView: View {
                         .padding(.horizontal, 8)
                         .padding(.bottom, 8)
                         .background(GeometryReader { geo in
-                            Color.clear.preference(key: HeightKey.self, value: geo.size.height)
+                            Color.clear
+                                .onAppear { listHeight = geo.size.height }
+                                .onChange(of: geo.size.height) { _, h in listHeight = h }
                         })
                     }
                     .scrollBounceBehavior(.basedOnSize)
                     .frame(height: min(max(listHeight, 60), maxListHeight))
-                    .onPreferenceChange(HeightKey.self) { listHeight = $0 }
                     .onChange(of: model.focusedKey) { _, key in
                         guard let key else { return }
                         withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(key, anchor: .center) }
@@ -120,6 +121,7 @@ struct PopupView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
@@ -155,11 +157,6 @@ struct PopupView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
     }
-}
-
-private struct HeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 // MARK: - Output card
