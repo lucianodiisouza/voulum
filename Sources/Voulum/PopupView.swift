@@ -47,7 +47,6 @@ struct PopupView: View {
         // Cream silkscreen instead of white; secondary text follows it.
         .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
         .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
-        .animation(.snappy(duration: 0.22), value: model.expandedEQ)
     }
 
     // MARK: Apps

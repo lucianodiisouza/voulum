@@ -92,7 +92,9 @@ struct AppRowView: View {
                 }
                 IconButton(systemName: "slider.vertical.3", help: "Equalizer",
                            active: settings.eq.enabled && !settings.eq.isFlat) {
-                    withAnimation(.snappy(duration: 0.22)) { expandedEQ = eqOpen ? nil : app.key }
+                    // No animated layout: the popup window resizes in one step,
+                    // so a sliding panel would fight it. The panel fades instead.
+                    expandedEQ = eqOpen ? nil : app.key
                 }
                 moreMenu
             }
@@ -103,7 +105,10 @@ struct AppRowView: View {
 
             if eqOpen {
                 EQPanel(app: app)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top))
+                            .animation(.easeOut(duration: 0.18)),
+                        removal: .identity))
             }
         }
         .padding(.horizontal, 8)
