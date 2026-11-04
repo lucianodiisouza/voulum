@@ -16,6 +16,21 @@ locally and in CI: [`scripts/release.sh`](../scripts/release.sh).
 If the CI secrets are missing, the workflow falls back to an ad-hoc signature
 (`release.sh --adhoc`), so releases never break.
 
+> [!IMPORTANT]
+> **The CI signing secrets are not set yet**, so every release CI publishes is
+> ad-hoc signed and Gatekeeper blocks it on download. Until they are, each
+> release needs a second step from your Mac, right after the release PR merges
+> and CI has finished:
+>
+> ```bash
+> git fetch --tags && git worktree add --detach /tmp/voulum-release vX.Y.Z
+> cd /tmp/voulum-release && scripts/release.sh X.Y.Z
+> gh release upload vX.Y.Z build/Voulum-vX.Y.Z-macos.dmg build/Voulum-macos.dmg build/updates/appcast.xml --clobber
+> ```
+>
+> Upload all three together: the appcast is signed for that exact DMG. Re-running
+> the CI job afterwards puts an ad-hoc DMG back.
+
 ## Releasing from your Mac
 
 You need a **Developer ID Application** certificate in your login keychain.
