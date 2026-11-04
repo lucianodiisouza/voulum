@@ -6,7 +6,7 @@ cask "voulum" do
       verified: "github.com/lucianodiisouza/voulum/"
   name "Voulum"
   desc "Per-app volume, routing and EQ from the menu bar"
-  homepage "https://github.com/lucianodiisouza/voulum"
+  homepage "https://audio.oprimo.dev/"
 
   # Newest release wins; version/sha256 above are kept in sync by the release
   # workflow (see docs/HOMEBREW.md).
@@ -16,6 +16,8 @@ cask "voulum" do
   end
 
   # Process taps (the whole point of Voulum) are macOS 14.4+.
+  # Sparkle updates the app in place.
+  auto_updates true
   depends_on macos: :sonoma
 
   app "Voulum.app"
