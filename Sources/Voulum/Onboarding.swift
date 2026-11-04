@@ -310,8 +310,9 @@ private struct AudioStage: View {
 
     private func energy() -> Double {
         guard live else { return idleEnergy }
-        // A floor keeps it alive between songs.
-        return max(0.12, Double(probe.level))
+        // A floor keeps it alive between songs; the gain makes ordinary
+        // listening levels fill the stage.
+        return max(0.15, min(1, Double(probe.level) * 1.6))
     }
 
     private func drawAurora(_ context: inout GraphicsContext, size: CGSize, t: Double) {
@@ -320,14 +321,15 @@ private struct AudioStage: View {
             (Color(red: 0.18, green: 0.78, blue: 1.0), 0.07, 2.1, 0.42),
             (Color(red: 0.2, green: 0.95, blue: 0.7), 0.05, 4.2, 0.3),
         ]
-        var layer = context
-        layer.addFilter(.blur(radius: 70))
+        // Radial gradients rather than a blur filter: a filtered layer is
+        // clipped to a rectangle, which showed as a hard edge.
         for (color, speed, phase, alpha) in blobs {
-            let x = size.width * (0.5 + 0.32 * cos(t * speed + phase))
-            let y = size.height * (0.38 + 0.2 * sin(t * speed * 1.3 + phase))
-            let r = size.width * 0.32
-            layer.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 1.6)),
-                       with: .color(color.opacity(alpha)))
+            let center = CGPoint(x: size.width * (0.5 + 0.32 * cos(t * speed + phase)),
+                                 y: size.height * (0.38 + 0.2 * sin(t * speed * 1.3 + phase)))
+            let radius = size.width * 0.55
+            context.fill(Path(CGRect(origin: .zero, size: size)),
+                         with: .radialGradient(Gradient(colors: [color.opacity(alpha), color.opacity(alpha * 0.4), .clear]),
+                                               center: center, startRadius: 0, endRadius: radius))
         }
     }
 
