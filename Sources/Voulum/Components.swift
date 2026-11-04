@@ -29,6 +29,7 @@ struct VolumeSlider: View {
 
     @State private var dragging = false
     @State private var hovering = false
+    @State private var inDetent = false
     @Environment(\.deskStyle) private var desk
 
     private var hasBoost: Bool { maxValue > 1 }
@@ -67,11 +68,14 @@ struct VolumeSlider: View {
                     .onChanged { g in
                         if !dragging { dragging = true; onEditingChanged(true) }
                         var v = value(for: g.location.x / width)
-                        // Soft detent at 100%.
-                        if hasBoost && abs(v - 1) < 0.06 { v = 1 }
+                        // Soft detent at 100%, felt on the trackpad as it catches.
+                        let caught = hasBoost && abs(v - 1) < 0.06
+                        if caught { v = 1 }
+                        if caught && !inDetent { Haptics.detent() }
+                        inDetent = caught
                         value = v
                     }
-                    .onEnded { _ in dragging = false; onEditingChanged(false) }
+                    .onEnded { _ in dragging = false; inDetent = false; onEditingChanged(false) }
             )
             .background(ScrollWheelReader { delta in
                 value = min(maxValue, max(0, (muted ? 0 : value) + (delta > 0 ? step : -step)))
@@ -170,6 +174,20 @@ struct VolumeSlider: View {
                                                 startPoint: .leading, endPoint: .trailing))
         }
         return AnyShapeStyle(tint)
+    }
+}
+
+/// Force Touch trackpad feedback.
+enum Haptics {
+    /// The 100% detent. macOS doesn't expose a strength, and a single tap is
+    /// easy to miss mid-drag, so it's a "level change" with a second tap
+    /// right behind it: one firm click.
+    static func detent() {
+        let performer = NSHapticFeedbackManager.defaultPerformer
+        performer.perform(.levelChange, performanceTime: .now)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+            performer.perform(.levelChange, performanceTime: .now)
+        }
     }
 }
 
