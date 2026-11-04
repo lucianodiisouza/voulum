@@ -5,11 +5,14 @@ lives in this repo at [`Casks/voulum.rb`](../Casks/voulum.rb); the release
 workflow copies it into a separate **tap repo** on every release, with the
 version and DMG checksum filled in.
 
-Once set up, users install with:
+Users install with:
 
 ```bash
-brew install --cask lucianodiisouza/voulum/voulum
+brew install lucianodiisouza/voulum/voulum
 ```
+
+That taps `lucianodiisouza/homebrew-voulum` and installs in one command. Once
+tapped, plain `brew install voulum` resolves to the same cask.
 
 ## Prerequisite: signing & notarization
 
@@ -44,7 +47,25 @@ Repo ▸ **Settings ▸ Secrets and variables ▸ Actions ▸ New repository sec
 |--------|-------|
 | `HOMEBREW_TAP_TOKEN` | the fine-grained PAT (Contents: R/W on `homebrew-voulum`) |
 
-That's it. The next release bumps the cask automatically.
+With the token, the next release bumps the cask automatically, but only when
+the workflow signs and notarizes the DMG itself (the `APPLE_CERTIFICATE_*`
+secrets are set). An ad-hoc DMG from CI gets replaced by a locally notarized
+one, so its checksum would be wrong in the cask.
+
+## Bumping the cask after a local release
+
+While releases are signed locally (no signing secrets in Actions), bump the tap
+by hand once the notarized DMG is on the release:
+
+```bash
+cd ../homebrew-voulum
+VERSION=0.5.0
+SHA=$(shasum -a 256 ../voulum/build/Voulum-v$VERSION-macos.dmg | awk '{print $1}')
+sed -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+    -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" \
+    ../voulum/Casks/voulum.rb > Casks/voulum.rb
+git commit -am "voulum $VERSION" && git push
+```
 
 ## How it works in CI
 
@@ -55,15 +76,10 @@ new `version` and the uploaded DMG's `sha256` into a copy of this repo's
 `Casks/voulum.rb`, and pushes. When false the step is skipped, so this is safe
 to merge before the tap repo or token exist.
 
-## Seeding the current version by hand (optional)
-
-If you want the tap live before the next release, copy `Casks/voulum.rb` into
-`homebrew-voulum/Casks/voulum.rb` as-is. It already carries the latest released
-version and checksum.
-
 ## Going official later
 
-Submitting to Homebrew's own `homebrew-cask` (so `brew install --cask voulum`
-works with no tap prefix) requires the project to clear their notability bar and
-be notarized. Keep the personal tap regardless. It's the fallback and the place
-to test cask changes.
+Submitting to Homebrew's own `homebrew-cask` makes `brew install voulum` work
+with no tap at all. Releases are already notarized; what's missing is
+notability: a cask its own author submits needs the repo at 75 stars, 30 forks
+or 30 watchers. Keep the personal tap regardless. It's the fallback and the
+place to test cask changes.

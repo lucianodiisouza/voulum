@@ -100,10 +100,10 @@ Requires **macOS 14.4** or newer.
 ### Homebrew
 
 ```bash
-brew install --cask lucianodiisouza/voulum/voulum
+brew install lucianodiisouza/voulum/voulum
 ```
 
-Update it with `brew upgrade --cask voulum`, or let the app update itself.
+That adds the tap and installs in one go. After that, `brew install voulum` and `brew upgrade voulum` work on their own, or let the app update itself.
 
 <details>
 <summary>Installing an older, unsigned release?</summary>
