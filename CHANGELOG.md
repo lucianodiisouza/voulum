@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/lucianodiisouza/voulum/compare/v0.4.1...v0.5.0) (2026-11-04)
+
+
+### Features
+
+* Mixing Desk popup style with live meters ([#17](https://github.com/lucianodiisouza/voulum/issues/17)) ([6c09f5f](https://github.com/lucianodiisouza/voulum/commit/6c09f5fc92bc2c7775d48d39cc4a625450de9f17))
+* updates in the popup, more Primo apps, dev.oprimo.voulum ([#16](https://github.com/lucianodiisouza/voulum/issues/16)) ([a31b677](https://github.com/lucianodiisouza/voulum/commit/a31b67735444b12b18eefa4b2d1f7b9dca8c5981))
+
 ## [0.4.1](https://github.com/lucianodiisouza/voulum/compare/v0.4.0...v0.4.1) (2026-11-04)
 
 Released by hand from a local, notarized build (PR #13).
