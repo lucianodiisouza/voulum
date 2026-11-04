@@ -263,7 +263,6 @@ struct AppIconWithLevel: View {
     var clipping = false
     var size: CGFloat = 30
 
-    @State private var breathe = false
     @Environment(\.onScreen) private var onScreen
 
     var body: some View {
@@ -271,11 +270,7 @@ struct AppIconWithLevel: View {
             Circle()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 2.5)
             if playing && level < 0.01 && onScreen {
-                Circle()
-                    .stroke(Color.green.opacity(breathe ? 0.55 : 0.12), lineWidth: 2.5)
-                    .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: breathe)
-                    .onAppear { breathe = true }
-                    .onDisappear { breathe = false }
+                BreathingRing(lineWidth: 2.5)
             }
             Circle()
                 .trim(from: 0, to: CGFloat(level))
@@ -297,6 +292,57 @@ struct AppIconWithLevel: View {
     private var levelColor: Color {
         if desk { return clipping ? .deskAmber : Color(red: 0.62, green: 0.88, blue: 0.36) }
         return clipping ? .orange : .green
+    }
+}
+
+/// A green ring that fades in and out, for an app that's playing but not
+/// metered. Core Animation runs the fade in the render server: as a SwiftUI
+/// `repeatForever` animation it re-laid out the whole popup every frame,
+/// about 17% CPU for as long as the popup stayed open.
+private struct BreathingRing: NSViewRepresentable {
+    var lineWidth: CGFloat
+
+    func makeNSView(context: Context) -> RingView { RingView(lineWidth: lineWidth) }
+    func updateNSView(_ view: RingView, context: Context) {}
+
+    final class RingView: NSView {
+        private let ring = CAShapeLayer()
+        private let lineWidth: CGFloat
+
+        init(lineWidth: CGFloat) {
+            self.lineWidth = lineWidth
+            super.init(frame: .zero)
+            wantsLayer = true
+            ring.fillColor = nil
+            ring.strokeColor = NSColor.systemGreen.cgColor
+            ring.lineWidth = lineWidth
+            ring.opacity = 0.12
+            layer?.addSublayer(ring)
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func layout() {
+            super.layout()
+            ring.frame = bounds
+            ring.path = CGPath(ellipseIn: bounds.insetBy(dx: lineWidth / 2, dy: lineWidth / 2), transform: nil)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            ring.removeAnimation(forKey: "breathe")
+            guard window != nil else { return }
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0.12
+            fade.toValue = 0.55
+            fade.duration = 1.1
+            fade.autoreverses = true
+            fade.repeatCount = .infinity
+            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            ring.add(fade, forKey: "breathe")
+        }
     }
 }
 
