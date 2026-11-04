@@ -343,6 +343,8 @@ struct LEDMeter: View {
 struct DeskFaderCap: View {
     var muted = false
     var pressed = false
+    /// On a vertical fader the line runs across the cap.
+    var vertical = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -353,7 +355,7 @@ struct DeskFaderCap: View {
                                              startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
             .overlay(Rectangle()
                 .fill(Color.white.opacity(muted ? 0.3 : 0.92))
-                .frame(width: 2, height: 13))
+                .frame(width: vertical ? 13 : 2, height: vertical ? 2 : 13))
             .shadow(color: .black.opacity(0.7), radius: 2.5, y: 2)
     }
 }
