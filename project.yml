@@ -11,7 +11,7 @@ packages:
 settings:
   base:
     MARKETING_VERSION: "0.5.2" # x-release-please-version
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "0.5.2" # x-release-please-version
     # Swift 5 language mode: Core Audio C callbacks are painful under Swift 6
     # strict concurrency. Revisit once the audio plumbing is stable.
     SWIFT_VERSION: "5.0"
