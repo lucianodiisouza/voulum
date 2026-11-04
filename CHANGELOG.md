@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/lucianodiisouza/voulum/compare/v0.5.0...v0.5.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* open the DMG in a designed installer window ([#21](https://github.com/lucianodiisouza/voulum/issues/21)) ([62db6f1](https://github.com/lucianodiisouza/voulum/commit/62db6f1ce05698118a6f68025cd3235bd77cc5de))
+
 ## [0.5.0](https://github.com/lucianodiisouza/voulum/compare/v0.4.1...v0.5.0) (2026-11-04)
 
 
