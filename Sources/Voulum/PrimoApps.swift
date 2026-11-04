@@ -71,6 +71,10 @@ enum PrimoApp: String, CaseIterable, Identifiable {
         Bundle.main.url(forResource: "primo-\(iconName)", withExtension: "png").flatMap(NSImage.init(contentsOf:))
     }
 
+    /// These icons fill their whole square (iPhone, Windows or web icons).
+    /// The rest already carry the Mac icon's margin and rounded body.
+    var iconIsFullBleed: Bool { [.dock, .engine, .recta, .rec].contains(self) }
+
     private var iconName: String {
         switch self {
         case .dock: "primodock"
@@ -124,14 +128,7 @@ private struct PrimoAppRow: View {
     var body: some View {
         Button(action: app.open) {
             HStack(spacing: 12) {
-                Group {
-                    if let image = app.icon {
-                        Image(nsImage: image).resizable().interpolation(.high)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8).fill(.quaternary)
-                    }
-                }
-                .frame(width: 36, height: 36)
+                icon.frame(width: 36, height: 36)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(verbatim: app.name).fontWeight(.medium)
@@ -158,5 +155,25 @@ private struct PrimoAppRow: View {
         .accessibilityValue(Text(app.blurb))
         .accessibilityHint(Text(action))
         .accessibilityAddTraits(.isButton)
+    }
+
+    /// Full-bleed icons get the Mac grid's margin (about 10%) and its
+    /// continuous corner, so all seven read as the same size and shape.
+    @ViewBuilder private var icon: some View {
+        let inset: CGFloat = 36 * 0.1
+        if let image = app.icon {
+            if app.iconIsFullBleed {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .clipShape(RoundedRectangle(cornerRadius: (36 - inset * 2) * 0.225, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 1, y: 0.5)
+                    .padding(inset)
+            } else {
+                Image(nsImage: image).resizable().interpolation(.high)
+            }
+        } else {
+            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(.quaternary).padding(inset)
+        }
     }
 }
