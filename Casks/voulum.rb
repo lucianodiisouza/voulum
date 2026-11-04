@@ -5,7 +5,7 @@ cask "voulum" do
   url "https://github.com/lucianodiisouza/voulum/releases/download/v#{version}/Voulum-v#{version}-macos.dmg",
       verified: "github.com/lucianodiisouza/voulum/"
   name "Voulum"
-  desc "Menu-bar per-app volume control"
+  desc "Per-app volume, routing and EQ from the menu bar"
   homepage "https://github.com/lucianodiisouza/voulum"
 
   # Newest release wins; version/sha256 above are kept in sync by the release
