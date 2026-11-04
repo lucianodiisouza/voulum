@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Track metadata read from a scriptable media app.
 struct NowPlaying: Equatable {
@@ -219,15 +220,43 @@ enum NowPlayingService {
         return NowPlaying(title: parts[0], artist: parts[1], album: album, isPlaying: isPlaying)
     }
 
-    /// Compile and run an AppleScript, returning its string result.
+    /// A compiled script and the lock that keeps one run at a time on it.
+    private final class CompiledScript: @unchecked Sendable {
+        let script: NSAppleScript
+        let lock = NSLock()
+        init(_ script: NSAppleScript) { self.script = script }
+    }
+
+    /// Scripts compiled so far, by source. The metadata query runs every
+    /// second while the popup is open, and compiling it each time cost more
+    /// than the Apple event itself (each compile is also scanned by XProtect).
+    private static let compiled = OSAllocatedUnfairLock<[String: CompiledScript]>(initialState: [:])
+
+    private static func compiledScript(_ source: String) -> CompiledScript? {
+        if let cached = compiled.withLock({ $0[source] }) { return cached }
+        guard let script = NSAppleScript(source: source) else { return nil }
+        var errorInfo: NSDictionary?
+        guard script.compileAndReturnError(&errorInfo) else {
+            log.error("NowPlaying script failed to compile: \(errorInfo ?? [:])")
+            return nil
+        }
+        let entry = CompiledScript(script)
+        return compiled.withLock { cache in
+            if let existing = cache[source] { return existing }
+            cache[source] = entry
+            return entry
+        }
+    }
+
+    /// Run an AppleScript (compiled once, then reused), returning its string result.
     private static func run(_ source: String,
                             context: String,
                             javaScriptHint: String? = nil) -> Result<String?, ScriptError> {
-        guard let script = NSAppleScript(source: source) else {
+        guard let compiled = compiledScript(source) else {
             return .failure(.failed("Could not compile script"))
         }
         var errorInfo: NSDictionary?
-        let output = script.executeAndReturnError(&errorInfo)
+        let output = compiled.lock.withLock { compiled.script.executeAndReturnError(&errorInfo) }
         if let errorInfo {
             log.error("NowPlaying \(context, privacy: .public) failed: \(errorInfo)")
             let number = errorInfo[NSAppleScript.errorNumber] as? Int ?? 0
