@@ -52,11 +52,22 @@ final class PopupPanel: NSPanel {
         hosted.layer?.masksToBounds = true
         if #available(macOS 26, *), let glass = backdrop as? NSGlassEffectView {
             glass.contentView = hosted
+            // Glass paints a soft halo past its corner radius; inside a
+            // borderless window that shows as smudged square corners.
+            let clip = NSView()
+            clip.wantsLayer = true
+            clip.layer?.cornerRadius = Self.cornerRadius
+            clip.layer?.cornerCurve = .continuous
+            clip.layer?.masksToBounds = true
+            glass.frame = clip.bounds
+            glass.autoresizingMask = [.width, .height]
+            clip.addSubview(glass)
+            contentView = clip
         } else {
             hosted.frame = backdrop.bounds
             backdrop.addSubview(hosted)
+            contentView = backdrop
         }
-        contentView = backdrop
         setContentSize(size)
         // Glass draws its own rim and depth; a window shadow would trace the
         // panel's square frame around the rounded glass.
