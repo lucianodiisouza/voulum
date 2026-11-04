@@ -114,7 +114,7 @@ final class AudioEngine: ObservableObject {
                 if let running = runningApps.first(where: { $0.key == pin.key }) {
                     result.append(running)
                 } else {
-                    result.append(AudioApp(key: pin.key, name: pin.name, bundleID: pin.key.hasPrefix("pid:") ? nil : pin.key,
+                    result.append(AudioApp(key: pin.key, name: pin.name, bundleID: pin.key.contains(":") ? nil : pin.key,
                                            bundleURL: pin.bundlePath.map { URL(fileURLWithPath: $0) },
                                            pid: nil, processIDs: [], isPlaying: false))
                 }
@@ -389,18 +389,24 @@ final class AudioEngine: ObservableObject {
             let rawBundleID: String? = try? objectID.readCF(kAudioProcessPropertyBundleID, as: String.self) ?? nil
             let running: UInt32 = (try? objectID.read(kAudioProcessPropertyIsRunningOutput, default: UInt32(0))) ?? 0
 
-            let owner = owningApp(of: pid)
+            // A non-app owner (a CLI parent like a shell) says nothing useful
+            // about who's playing; only keep it when it's a real app bundle.
+            let owner = owningApp(of: pid).flatMap { $0.bundleIdentifier == nil ? nil : $0 }
             // Never list ourselves — see the note on feedback loops in AppTap.
             if owner?.processIdentifier == ownPID { continue }
             let bundleID = owner?.bundleIdentifier ?? rawBundleID
-            let key = bundleID ?? "pid:\(owner?.processIdentifier ?? pid)"
+            let executable = processName(pid)
+            // Bundleless tools (afplay, mpv, a game binary) are keyed by their
+            // executable so their settings survive relaunches like an app's do.
+            let key = bundleID ?? executable.map { "exe:\($0)" } ?? "pid:\(pid)"
 
             if var existing = groups[key] {
                 existing.processIDs.append(objectID)
                 existing.isPlaying = existing.isPlaying || running != 0
                 groups[key] = existing
             } else {
-                let name = owner?.localizedName ?? bundleID.map(prettyBundleName) ?? processName(pid) ?? "PID \(pid)"
+                let ownerName = owner?.localizedName.flatMap { $0.isEmpty ? nil : $0 }
+                let name = ownerName ?? bundleID.map(prettyBundleName) ?? executable ?? "PID \(pid)"
                 groups[key] = AudioApp(key: key, name: name, bundleID: bundleID, bundleURL: owner?.bundleURL,
                                        pid: owner?.processIdentifier ?? pid,
                                        processIDs: [objectID], isPlaying: running != 0)
@@ -418,7 +424,7 @@ final class AudioEngine: ObservableObject {
         var firstMatch: NSRunningApplication?
         var current: pid_t? = pid
         var hops = 0
-        while let p = current, hops < 8 {
+        while let p = current, hops < 16 {
             if let app = NSRunningApplication(processIdentifier: p) {
                 if app.activationPolicy == .regular { return app }
                 if firstMatch == nil { firstMatch = app }
