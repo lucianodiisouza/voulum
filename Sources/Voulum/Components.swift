@@ -357,11 +357,32 @@ struct LEDMeter: View {
     var clipping = false
     var segments = 24
 
+    /// Drawn in one Canvas rather than a view per LED: the popup redraws on
+    /// every meter tick and marquee frame, and SwiftUI's cost per frame grows
+    /// with the number of views (and shadows) in the window.
     var body: some View {
-        VStack(spacing: 2) {
-            row(left)
-            row(right)
+        Canvas { context, size in
+            let rowHeight: CGFloat = 5, gap: CGFloat = 2
+            let width = (size.width - gap * CGFloat(segments - 1)) / CGFloat(segments)
+            for (r, level) in [left, right].enumerated() {
+                let lit = Int((level * Float(segments)).rounded())
+                let y = CGFloat(r) * (rowHeight + gap)
+                for i in 0..<segments {
+                    let on = i < lit || (clipping && i == segments - 1)
+                    let rect = CGRect(x: CGFloat(i) * (width + gap), y: y, width: width, height: rowHeight)
+                    let path = Path(roundedRect: rect, cornerRadius: 1)
+                    if on {
+                        context.drawLayer { layer in
+                            layer.addFilter(.shadow(color: color(i).opacity(0.55), radius: 1.5))
+                            layer.fill(path, with: .color(color(i)))
+                        }
+                    } else {
+                        context.fill(path, with: .color(Color(white: 0.15)))
+                    }
+                }
+            }
         }
+        .frame(height: 12)
         .padding(3)
         .background(
             RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -370,19 +391,6 @@ struct LEDMeter: View {
                     .stroke(Color.white.opacity(0.07), lineWidth: 0.5))
         )
         .accessibilityHidden(true)
-    }
-
-    private func row(_ level: Float) -> some View {
-        let lit = Int((level * Float(segments)).rounded())
-        return HStack(spacing: 2) {
-            ForEach(0..<segments, id: \.self) { i in
-                let on = i < lit || (clipping && i == segments - 1)
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(on ? color(i) : Color(white: 0.15))
-                    .shadow(color: on ? color(i).opacity(0.55) : .clear, radius: 1.5)
-            }
-        }
-        .frame(height: 5)
     }
 
     private func color(_ i: Int) -> Color {
