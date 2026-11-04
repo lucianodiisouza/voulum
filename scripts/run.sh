@@ -56,6 +56,26 @@ if [[ ! -d "${BUILT_APP}" ]]; then
   exit 1
 fi
 
+# Xcode signs the app ad hoc with the hardened runtime on, and the runtime's
+# library validation then refuses the embedded Sparkle.framework (dyld:
+# "Library missing ... different Team IDs"). Re-sign inside-out without the
+# runtime, as release.sh --adhoc does.
+step "Re-signing ad hoc"
+SPARKLE="${BUILT_APP}/Contents/Frameworks/Sparkle.framework"
+if [[ -d "${SPARKLE}" ]]; then
+  for helper in \
+    "${SPARKLE}/Versions/B/XPCServices/Installer.xpc" \
+    "${SPARKLE}/Versions/B/XPCServices/Downloader.xpc" \
+    "${SPARKLE}/Versions/B/Autoupdate" \
+    "${SPARKLE}/Versions/B/Updater.app"; do
+    [[ -e "${helper}" ]] && codesign --force --sign - --preserve-metadata=entitlements "${helper}" 2>/dev/null
+  done
+  codesign --force --sign - "${SPARKLE}" 2>/dev/null
+fi
+codesign --force --sign - --entitlements "${REPO_ROOT}/Sources/${APP_NAME}/${APP_NAME}.entitlements" \
+  "${BUILT_APP}" 2>/dev/null
+codesign --verify --deep --strict "${BUILT_APP}"
+
 step "Quitting running ${APP_NAME} instances"
 killall "${APP_NAME}" 2>/dev/null && echo "  stopped" || echo "  none running"
 sleep 1
