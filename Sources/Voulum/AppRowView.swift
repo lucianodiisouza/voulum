@@ -131,8 +131,7 @@ struct AppRowView: View {
 
     @ViewBuilder private var subtitleView: some View {
         let (text, color) = subtitle
-        MarqueeText(text: text, font: .caption)
-            .foregroundStyle(color)
+        MarqueeText(text: text, font: .caption, color: color)
     }
 
     private var subtitle: (String, Color) {
