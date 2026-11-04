@@ -399,9 +399,13 @@ private struct StageButton: View {
     let title: LocalizedStringKey
     let action: () -> Void
     @State private var hovering = false
+    /// During a step change both steps' buttons are on screen and both answer
+    /// Return, so one key press could run through the whole tour. A new
+    /// button only starts listening once its step has settled.
+    @State private var armed = false
 
     var body: some View {
-        Button(action: action) {
+        Button { if armed { action() } } label: {
             Text(title)
                 .font(.headline)
                 .foregroundStyle(.black)
@@ -414,6 +418,10 @@ private struct StageButton: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .onHover { h in withAnimation(.snappy(duration: 0.18)) { hovering = h } }
+        .task {
+            try? await Task.sleep(for: .milliseconds(600))
+            armed = true
+        }
     }
 }
 
