@@ -53,6 +53,9 @@ final class PopupPanel: NSPanel {
         }
         contentView = backdrop
         setContentSize(size)
+        // Glass draws its own rim and depth; a window shadow would trace the
+        // panel's square frame around the rounded glass.
+        hasShadow = style.effective != .glass
         invalidateShadow()
     }
 
