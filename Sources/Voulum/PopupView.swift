@@ -310,7 +310,7 @@ struct OutputCard: View {
 
 /// The desk style's Output / Input switch: two silkscreened keys, the chosen
 /// one lit amber.
-private struct DeskTab: View {
+struct DeskTab: View {
     let title: String
     let selected: Bool
     let action: () -> Void
@@ -422,13 +422,17 @@ struct DeviceList: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 2)
 
-            let list = model.showingInputs ? devices.visibleInputs : devices.visibleOutputs
-            ForEach(list) { device in
-                DeviceRowView(device: device, input: model.showingInputs)
-            }
-            if list.isEmpty {
-                Text(model.showingInputs ? String(localized: "No microphones") : String(localized: "No outputs"))
-                    .font(.caption).foregroundStyle(.secondary).padding(8)
+            // Both lists stay laid out, one hidden: the panel keeps the taller
+            // one's height, so switching never resizes the popup window.
+            ZStack(alignment: .top) {
+                devicesList(input: false)
+                    .opacity(model.showingInputs ? 0 : 1)
+                    .allowsHitTesting(!model.showingInputs)
+                    .accessibilityHidden(model.showingInputs)
+                devicesList(input: true)
+                    .opacity(model.showingInputs ? 1 : 0)
+                    .allowsHitTesting(model.showingInputs)
+                    .accessibilityHidden(!model.showingInputs)
             }
 
             HStack {
@@ -441,6 +445,19 @@ struct DeviceList: View {
         }
         .padding(6)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+
+    private func devicesList(input: Bool) -> some View {
+        let list = input ? devices.visibleInputs : devices.visibleOutputs
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(list) { device in
+                DeviceRowView(device: device, input: input)
+            }
+            if list.isEmpty {
+                Text(input ? String(localized: "No microphones") : String(localized: "No outputs"))
+                    .font(.caption).foregroundStyle(.secondary).padding(8)
+            }
+        }
     }
 }
 
