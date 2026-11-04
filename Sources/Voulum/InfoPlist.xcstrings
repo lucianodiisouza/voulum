@@ -1,0 +1,75 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSAudioCaptureUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum picks up app audio so it can set each app's volume."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Voulum capta o áudio dos apps para ajustar o volume de cada um."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum capta el audio de las apps para ajustar el volumen de cada una."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum picks up app audio so it can set each app's volume."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Voulum capta o áudio dos apps para ajustar o volume de cada um."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum capta el audio de las apps para ajustar el volumen de cada una."
+          }
+        }
+      }
+    },
+    "NSAppleEventsUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum asks media apps and browsers what's playing so it can show the title and play or pause them."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Voulum pergunta aos apps de mídia e navegadores o que está tocando para mostrar o título e tocar ou pausar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulum pregunta a las apps de música y navegadores qué suena para mostrar el título y reproducir o pausar."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

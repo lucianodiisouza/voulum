@@ -560,15 +560,15 @@ private struct ShortcutsSettings: View {
 
 extension ShortcutsSettings {
     static let popupKeys: [(String, String)] = [
-        ("↑ ↓", "Choose an app"),
-        ("← →", "Volume (⇧ for bigger steps)"),
-        ("M", "Mute"),
-        ("E", "Equalizer"),
-        ("Space", "Play / pause"),
-        ("↩", "Show the app"),
-        ("0", "Back to 100%"),
-        ("⇥", "Devices"),
-        ("esc", "Close"),
+        ("↑ ↓", String(localized: "Choose an app")),
+        ("← →", String(localized: "Volume (⇧ for bigger steps)")),
+        ("M", String(localized: "Mute")),
+        ("E", String(localized: "Equalizer")),
+        (String(localized: "Space"), String(localized: "Play / pause")),
+        ("↩", String(localized: "Show the app")),
+        ("0", String(localized: "Back to 100%")),
+        ("⇥", String(localized: "Devices")),
+        ("esc", String(localized: "Close")),
     ]
 }
 
