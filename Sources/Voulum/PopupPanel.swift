@@ -87,7 +87,7 @@ final class PopupPanel: NSPanel {
             // A solid panel, like the desk's metal: nothing shows through.
             let panel = DeskBackdrop()
             panel.wantsLayer = true
-            panel.layer?.borderColor = NSColor.white.withAlphaComponent(0.09).cgColor
+            panel.layer?.borderColor = NSColor.white.withAlphaComponent(0.04).cgColor
             panel.layer?.borderWidth = 1
             panel.layer?.cornerRadius = cornerRadius
             panel.layer?.cornerCurve = .continuous
