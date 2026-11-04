@@ -45,5 +45,19 @@
 	<string>REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<!-- voulum:// automation links (see URLCommands.swift). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.voulum.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>voulum</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
 </dict>
 </plist>
