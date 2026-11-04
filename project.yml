@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     macOS: "14.4"
   createIntermediateGroups: true
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 settings:
   base:
     MARKETING_VERSION: "0.4.0" # x-release-please-version
@@ -29,3 +33,5 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         ENABLE_APP_SANDBOX: NO
         MACOSX_DEPLOYMENT_TARGET: "14.4"
+    dependencies:
+      - package: Sparkle

@@ -6,12 +6,14 @@ struct VoulumApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var controller = AudioProcessController.shared
     @StateObject private var system = SystemAudioController.shared
+    @StateObject private var updater = Updater()
 
     var body: some Scene {
         MenuBarExtra {
             MenuView()
                 .environmentObject(controller)
                 .environmentObject(system)
+                .environmentObject(updater)
         } label: {
             // Adapts to the current output device (speaker / headphones / TV /
             // AirPlay), its volume level, and mute state — see `menuBarSymbol`.

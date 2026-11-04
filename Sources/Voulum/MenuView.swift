@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuView: View {
     @EnvironmentObject var controller: AudioProcessController
     @EnvironmentObject var system: SystemAudioController
+    @EnvironmentObject var updater: Updater
     @State private var launchAtLogin = LoginItem.isEnabled
     /// Whether the output section is expanded; remembered across launches so a
     /// user who only wants the per-app mixer can collapse it for good.
@@ -220,20 +221,24 @@ struct MenuView: View {
                 .controlSize(.small)
                 .help("Starting one app pauses every other app Voulum can control.")
 
-            HStack {
-                Toggle("Launch at login", isOn: launchAtLoginBinding)
-                    .toggleStyle(.checkbox)
-                    .controlSize(.small)
-                Spacer()
-                Button("Quit Voulum") { NSApp.terminate(nil) }
-                    .buttonStyle(.borderless)
-            }
+            Toggle("Launch at login", isOn: launchAtLoginBinding)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
 
             if !controller.audioPermissionGranted {
                 Label("First volume change asks for audio permission.",
                       systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Button("Quit Voulum") { NSApp.terminate(nil) }
+                    .buttonStyle(.borderless)
+                Spacer()
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .buttonStyle(.borderless)
+                    .disabled(!updater.canCheckForUpdates)
             }
         }
         .padding(.horizontal, 14)
