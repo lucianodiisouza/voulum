@@ -8,12 +8,15 @@
 #   2. sign inside-out: Sparkle helpers → Sparkle.framework → Voulum.app
 #   3. package and sign the .dmg
 #   4. notarize with notarytool, then staple the ticket
+#   5. write build/updates/appcast.xml, the Sparkle feed for this DMG
+#      (locally only: the release workflow builds its own from a secret)
 #
 # Usage:
 #   scripts/release.sh                  # version from project.yml
 #   scripts/release.sh 0.5.0            # explicit version (also CFBundleVersion)
 #   scripts/release.sh --no-notarize    # sign + package only
 #   scripts/release.sh --adhoc          # ad-hoc signature, no notarization
+#   scripts/release.sh --no-appcast     # skip the Sparkle feed
 #
 # Signing identity: $SIGNING_IDENTITY, else the first "Developer ID
 # Application" identity in your keychain.
@@ -24,8 +27,11 @@
 #   NOTARY_PROFILE (default "voulum-notary")          keychain profile, created once with:
 #       xcrun notarytool store-credentials voulum-notary
 #
+# Sparkle signing key: the one generate_keys stored in your login keychain,
+# or $SPARKLE_KEY_FILE.
+#
 # Output: build/Voulum-v<version>-macos.dmg (path also written to $GITHUB_ENV
-# as DMG when running in Actions).
+# as DMG when running in Actions) and build/updates/appcast.xml.
 #
 set -euo pipefail
 
@@ -36,12 +42,15 @@ ENTITLEMENTS="${REPO_ROOT}/Sources/Voulum/Voulum.entitlements"
 version=""
 notarize=true
 adhoc=false
+appcast=true
+[[ -n "${GITHUB_ACTIONS:-}" ]] && appcast=false
 for arg in "$@"; do
   case "$arg" in
     --no-notarize) notarize=false ;;
-    --adhoc)       adhoc=true; notarize=false ;;
+    --adhoc)       adhoc=true; notarize=false; appcast=false ;;
+    --no-appcast)  appcast=false ;;
     -h|--help)
-      sed -n '3,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '3,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     -*) echo "Unknown option: $arg" >&2; exit 2 ;;
     *)  version="${arg#v}" ;;
@@ -155,6 +164,27 @@ if $notarize; then
   xcrun stapler staple -q "$DMG"
   xcrun stapler validate -q "$DMG"
   spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+fi
+
+# --- 5. Sparkle feed --------------------------------------------------------
+
+if $appcast; then
+  step "Writing the Sparkle appcast"
+  generate_appcast="$(find "${BUILD_DIR}/SourcePackages/artifacts" -path '*/bin/generate_appcast' -type f 2>/dev/null | head -1)"
+  [[ -n "$generate_appcast" ]] || die "generate_appcast not found; build once so Sparkle's package is fetched, or pass --no-appcast."
+  repo="$(git remote get-url origin | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
+  UPDATES="${BUILD_DIR}/updates"
+  rm -rf "$UPDATES" && mkdir -p "$UPDATES"
+  cp "$DMG" "$UPDATES/"
+  key_args=()
+  [[ -n "${SPARKLE_KEY_FILE:-}" ]] && key_args=(--ed-key-file "$SPARKLE_KEY_FILE")
+  # generate_appcast reads the version out of the app inside the DMG and signs
+  # the download with the EdDSA key; the app checks it against SUPublicEDKey.
+  "$generate_appcast" ${key_args[@]+"${key_args[@]}"} \
+    --download-url-prefix "https://github.com/${repo}/releases/download/v${version}/" \
+    "$UPDATES"
+  printf '  Upload both to the v%s release:\n    gh release upload v%s "%s" "%s" --clobber\n' \
+    "$version" "$version" "$DMG" "$UPDATES/appcast.xml"
 fi
 
 [[ -n "${GITHUB_ENV:-}" ]] && echo "DMG=$DMG" >> "$GITHUB_ENV"

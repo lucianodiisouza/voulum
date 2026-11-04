@@ -64,6 +64,21 @@ gh secret set SPARKLE_PRIVATE_KEY < sparkle_private_key.pem
 That's it. The next release-please release will publish a signed `appcast.xml`,
 and installed copies will start seeing updates.
 
+## Releasing from your Mac
+
+`scripts/release.sh` also writes `build/updates/appcast.xml`, signed with the
+key in your login keychain (macOS may ask to allow access the first time). Use
+a version newer than the last release, since Sparkle only offers higher
+versions:
+
+```bash
+NOTARY_PROFILE=primodock-notary scripts/release.sh 0.4.1
+gh release upload v0.4.1 build/Voulum-v0.4.1-macos.dmg build/updates/appcast.xml --clobber
+```
+
+The app reads the feed from `releases/latest/download/appcast.xml`, so the
+release you upload to must be marked as the latest.
+
 ## Why the CI overrides `CURRENT_PROJECT_VERSION`
 
 Sparkle decides "is this newer?" by comparing **`CFBundleVersion`**.
