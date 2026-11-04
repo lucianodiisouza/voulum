@@ -1,14 +1,9 @@
 # Auto-update (Sparkle)
 
 Voulum uses [Sparkle](https://sparkle-project.org) to check for, download, and
-install new versions. This works even though the app is **unsigned**: Sparkle
-verifies each update with its own **EdDSA (Ed25519)** signature, which is
-independent of Apple code signing / notarization.
-
-A nice side effect: updates installed by Sparkle are *not* quarantined (the app
-downloads them, not the browser), so the one-time `xattr` workaround in the
-README only ever applies to the **first** install. Every update after that is
-one click.
+install new versions. Sparkle checks each update against its own **EdDSA
+(Ed25519)** signature, on top of Apple's Developer ID signature and
+notarization. An update has to pass both before it installs.
 
 ## How it fits together
 
