@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.2](https://github.com/lucianodiisouza/voulum/compare/v0.5.1...v0.5.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **scripts:** re-sign dev builds so they launch with Sparkle ([9f8d7e3](https://github.com/lucianodiisouza/voulum/commit/9f8d7e37dbe61e0a8b9eb6985c982d1f74adb54e))
+* start the mic meter off the HAL queue ([05c2868](https://github.com/lucianodiisouza/voulum/commit/05c28680170b0ad58133f53c07a6be62d68dc9f6))
+* stop popup animations while the popup is closed ([dc03926](https://github.com/lucianodiisouza/voulum/commit/dc03926355d9facdee4593080276ada880b91418))
+
+
+### Performance Improvements
+
+* breathe the level ring with Core Animation ([4fdb070](https://github.com/lucianodiisouza/voulum/commit/4fdb070afca9bc18f1f1bcda953ac2df91eee726))
+* compile now-playing AppleScripts once ([1e87626](https://github.com/lucianodiisouza/voulum/commit/1e8762670d14e53169bd3251608e4fb340341110))
+* draw LED meters in one Canvas ([a297a9f](https://github.com/lucianodiisouza/voulum/commit/a297a9f9fa682cf6d071d12fe7ac65a5a1c7a921))
+* stop the marquee and the breathing ring ([f1dd0f6](https://github.com/lucianodiisouza/voulum/commit/f1dd0f6d9948a035e2a65d0cd3dd33b386742e0b))
+
 ## [0.5.1](https://github.com/lucianodiisouza/voulum/compare/v0.5.0...v0.5.1) (2026-11-04)
 
 
