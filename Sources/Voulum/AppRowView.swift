@@ -116,7 +116,7 @@ struct AppRowView: View {
         .background(RowBackground(highlighted: focused || hovering || eqOpen))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.accentColor.opacity(focused ? 0.55 : 0), lineWidth: 1.5)
+                .stroke((desk ? Color.deskAmber : Color.accentColor).opacity(focused ? 0.55 : 0), lineWidth: 1.5)
         )
         .onHover { hovering = $0 }
         .contextMenu { moreMenuItems }
