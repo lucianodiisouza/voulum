@@ -1,67 +1,91 @@
 # Code signing & notarization
 
-By default the released `.dmg` is **ad-hoc signed** (free, but users must clear
-the quarantine flag — see the README). Once you have a **paid Apple Developer
-account**, add the secrets below and the release workflow automatically switches
-to a **Developer ID** signature + **notarization**, so the app opens with no
-warnings and no `xattr` step.
+Releases are **Developer ID signed and notarized**, so the downloaded app opens
+with no Gatekeeper warning and no `xattr` step. A single script does the work,
+locally and in CI: [`scripts/release.sh`](../scripts/release.sh).
 
-No code change is needed to turn this on — the workflow detects the secrets. If
-they're absent it falls back to ad-hoc, so nothing breaks in the meantime.
+1. Build Release, unsigned.
+2. Sign inside-out with the hardened runtime and a secure timestamp:
+   - first Sparkle's helpers (`Installer.xpc`, `Downloader.xpc`, `Autoupdate`, `Updater.app`)
+   - then `Sparkle.framework`
+   - then `Voulum.app` with [`Voulum.entitlements`](../Sources/Voulum/Voulum.entitlements)
+3. Package `Voulum-vX.Y.Z-macos.dmg` and sign the DMG.
+4. `notarytool submit --wait`, then `stapler staple` and an `spctl` check. If
+   Apple rejects the submission, the script prints the notary log.
 
-## One-time setup
+If the CI secrets are missing, the workflow falls back to an ad-hoc signature
+(`release.sh --adhoc`), so releases never break.
 
-### 1. Create a Developer ID Application certificate
+## Releasing from your Mac
 
-In [Apple Developer ▸ Certificates](https://developer.apple.com/account/resources/certificates/list),
-create a **Developer ID Application** certificate, download it, and add it to
-your login keychain (double-click the `.cer`). Then export it **with its private
-key** as a `.p12` (Keychain Access ▸ right-click the cert ▸ Export), setting a
-password.
-
-Base64-encode the `.p12` for the secret:
-
-```bash
-base64 -i DeveloperID.p12 | pbcopy
-```
-
-### 2. Create an app-specific password
-
-At [appleid.apple.com](https://appleid.apple.com) ▸ Sign-In & Security ▸
-App-Specific Passwords, generate one for notarization.
-
-### 3. Find your identity string and Team ID
+You need a **Developer ID Application** certificate in your login keychain.
+Check that it's there:
 
 ```bash
-security find-identity -v -p codesigning   # -> "Developer ID Application: Your Name (TEAMID)"
+security find-identity -v -p codesigning   # "Developer ID Application: Name (TEAMID)"
 ```
 
-The `TEAMID` in parentheses is your Team ID.
+Store notary credentials in the keychain once. notarytool asks for an Apple ID
+and an [app-specific password](https://appleid.apple.com), or for an App Store
+Connect API key:
 
-## GitHub secrets to add
+```bash
+xcrun notarytool store-credentials voulum-notary
+```
 
-Repo ▸ **Settings ▸ Secrets and variables ▸ Actions ▸ New repository secret**:
+Then build a release:
+
+```bash
+scripts/release.sh            # version from project.yml → build/Voulum-v<version>-macos.dmg
+scripts/release.sh 0.5.0      # explicit version
+scripts/release.sh --no-notarize
+```
+
+To use a different identity or profile, set `SIGNING_IDENTITY` or
+`NOTARY_PROFILE`.
+
+## Releasing from CI
+
+The `release-dmg` job in
+[`release-please.yml`](../.github/workflows/release-please.yml) runs whenever
+release-please publishes a release:
+
+1. It imports the certificate into a throwaway keychain.
+2. It runs `scripts/release.sh "$TAG"`.
+3. It uploads the DMG, then updates the Sparkle appcast and the Homebrew cask.
+
+### Secrets
+
+Add these under Repo ▸ **Settings ▸ Secrets and variables ▸ Actions**.
+
+**Certificate** (required for signing):
 
 | Secret | Value |
 |--------|-------|
-| `APPLE_CERTIFICATE_P12_BASE64` | base64 of the `.p12` (step 1) |
+| `APPLE_CERTIFICATE_P12_BASE64` | `base64 -i DeveloperID.p12 \| pbcopy`. Export the cert **with its private key** from Keychain Access. |
 | `APPLE_CERTIFICATE_PASSWORD` | the `.p12` export password |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Your Name (TEAMID)` |
+| `APPLE_SIGNING_IDENTITY` | optional; for example `Developer ID Application: Luciano de Souza (TJ7XUV6VQ9)` |
+
+**Notarization**, either option.
+
+Option A, App Store Connect API key (recommended):
+
+| Secret | Value |
+|--------|-------|
+| `NOTARY_API_KEY_P8_BASE64` | `base64 -i AuthKey_XXXX.p8 \| pbcopy` |
+| `NOTARY_API_KEY_ID` | the key ID |
+| `NOTARY_API_ISSUER_ID` | the issuer ID |
+
+Create the key at App Store Connect ▸ Users and Access ▸ Integrations ▸ Team
+Keys, with the *Developer* role.
+
+Option B, Apple ID:
+
+| Secret | Value |
+|--------|-------|
 | `APPLE_ID` | your Apple ID email |
-| `APPLE_TEAM_ID` | your Team ID |
-| `APPLE_APP_PASSWORD` | the app-specific password (step 2) |
+| `APPLE_TEAM_ID` | `TJ7XUV6VQ9` |
+| `APPLE_APP_PASSWORD` | an app-specific password |
 
-That's it — the next release signs, notarizes, and staples automatically.
-
-## How it works in CI
-
-In [`release-please.yml`](../.github/workflows/release-please.yml) the
-`release-dmg` job sets `HAS_CERT` from whether `APPLE_CERTIFICATE_P12_BASE64`
-exists. When true it imports the cert into a throwaway keychain, signs the app
-with `--options runtime` (hardened runtime, required for notarization), builds
-the `.dmg`, then `notarytool submit --wait` + `stapler staple`. When false it
-ad-hoc signs and skips notarization.
-
-> Prefer an App Store Connect API key over an app-specific password? Swap the
-> `notarytool` auth flags for `--key`, `--key-id`, and `--issuer` and store the
-> `.p8` as a secret instead.
+With these in place, the next release is signed, notarized and stapled
+automatically.
