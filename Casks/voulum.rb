@@ -2,8 +2,7 @@ cask "voulum" do
   version "0.2.1"
   sha256 "4703d84b39683053265a5f10d42363997a7f78c06e0db23f8ea60bc4f8a4ebcd"
 
-  url "https://github.com/lucianodiisouza/voulum/releases/download/v#{version}/Voulum-v#{version}-macos.dmg",
-      verified: "github.com/lucianodiisouza/voulum/"
+  url "https://github.com/lucianodiisouza/voulum/releases/download/v#{version}/Voulum-v#{version}-macos.dmg"
   name "Voulum"
   desc "Per-app volume, routing and EQ from the menu bar"
   homepage "https://audio.oprimo.dev/"
