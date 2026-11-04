@@ -386,7 +386,9 @@ final class AudioEngine: ObservableObject {
         for objectID in objectIDs where objectID.isValid {
             let pid: pid_t = (try? objectID.read(kAudioProcessPropertyPID, default: pid_t(-1))) ?? -1
             guard pid > 0, pid != ownPID else { continue }
-            let rawBundleID: String? = try? objectID.readCF(kAudioProcessPropertyBundleID, as: String.self) ?? nil
+            // Core Audio reports "" rather than nothing for bundleless processes.
+            let rawBundleID: String? = (try? objectID.readCF(kAudioProcessPropertyBundleID, as: String.self) ?? nil)
+                .flatMap { $0.isEmpty ? nil : $0 }
             let running: UInt32 = (try? objectID.read(kAudioProcessPropertyIsRunningOutput, default: UInt32(0))) ?? 0
 
             // A non-app owner (a CLI parent like a shell) says nothing useful
