@@ -12,6 +12,9 @@ final class PopupModel: ObservableObject {
     @Published var showingInputs = false
     /// The tallest the popup may be on its screen, set as it opens.
     @Published var maxHeight: CGFloat = 10_000
+    /// The popup is open. Its panel is only ordered out on close, so the
+    /// views stay alive and use this to stop animating.
+    @Published var isOpen = false
 }
 
 struct PopupView: View {
@@ -58,6 +61,7 @@ struct PopupView: View {
         }
         .frame(width: 380)
         .environment(\.deskStyle, prefs.popupStyle.effective == .desk)
+        .environment(\.onScreen, model.isOpen)
         // Cream silkscreen instead of white; secondary text follows it.
         .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
         .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
@@ -143,7 +147,7 @@ struct PopupView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 26, weight: .light))
                 .foregroundStyle(.tertiary)
-                .symbolEffect(.pulse, options: .repeating)
+                .symbolEffect(.pulse, options: .repeating, isActive: model.isOpen)
             Text("Nothing is playing")
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.secondary)

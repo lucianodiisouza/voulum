@@ -84,6 +84,7 @@ final class StatusItemController: NSObject {
     func open() {
         guard let button = statusItem.button, !isOpen else { return }
         isOpen = true
+        model.isOpen = true
         engine.beginLiveUpdates()
         devices.refresh()
         if model.focusedKey.map({ key in !engine.visibleApps.contains { $0.key == key } }) ?? false {
@@ -105,6 +106,7 @@ final class StatusItemController: NSObject {
     func close() {
         guard isOpen else { return }
         isOpen = false
+        model.isOpen = false
         statusItem.button?.highlight(false)
         removeMonitors()
         engine.endLiveUpdates()

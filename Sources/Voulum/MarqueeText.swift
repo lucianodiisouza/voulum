@@ -27,6 +27,7 @@ struct MarqueeText: View {
     @State private var textWidth: CGFloat = 0
     /// When the current pass began; reset whenever the text changes.
     @State private var start = Date()
+    @Environment(\.onScreen) private var onScreen
 
     var body: some View {
         // Invisible sizer: a normal truncating line. Defines height + a sane,
@@ -50,7 +51,7 @@ struct MarqueeText: View {
             let overflowing = textWidth > geo.size.width + 1
             Group {
                 if overflowing {
-                    TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                    TimelineView(.animation(minimumInterval: 1 / 30, paused: !onScreen)) { context in
                         HStack(spacing: spacing) {
                             lineText.fixedSize()
                             lineText.fixedSize()
