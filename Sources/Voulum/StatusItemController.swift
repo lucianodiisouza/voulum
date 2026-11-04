@@ -110,9 +110,11 @@ final class StatusItemController: NSObject {
             context.duration = 0.12
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            // A quick reopen may have happened during the fade.
-            if self?.isOpen == false { panel.orderOut(nil) }
-            panel.alphaValue = 1
+            MainActor.assumeIsolated {
+                // A quick reopen may have happened during the fade.
+                if self?.isOpen == false { panel.orderOut(nil) }
+                panel.alphaValue = 1
+            }
         })
     }
 
