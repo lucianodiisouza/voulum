@@ -33,9 +33,10 @@ final class AudioProcessController: ObservableObject {
 
     // MARK: Now-playing metadata
 
-    /// Latest track metadata per process, for the scriptable media apps we
-    /// support (Spotify / Apple Music). Absent for everything else — see
-    /// `NowPlayingService` for why the generic path is unavailable.
+    /// Latest track metadata per process, for the media apps that can report a
+    /// track cheaply enough to poll (Spotify, Music, TV, VLC, QuickTime). Absent
+    /// for browsers and for everything unscriptable — see `NowPlayingService`
+    /// for why the generic path is unavailable.
     @Published private(set) var nowPlaying: [AudioObjectID: NowPlaying] = [:]
 
     /// Serial queue for the blocking AppleScript round-trips that read track
@@ -46,28 +47,177 @@ final class AudioProcessController: ObservableObject {
 
     func nowPlaying(for process: AudioProcess) -> NowPlaying? { nowPlaying[process.id] }
 
-    /// Send a transport command (play/pause, next, previous) to the media app
-    /// backing this process, if it's one we can script. The play/pause icon is
-    /// flipped optimistically so it responds instantly; the next poll (or the
-    /// short follow-up refresh below) reconciles it with the app's real state.
-    func sendMediaCommand(_ command: NowPlayingService.Command, to process: AudioProcess) {
+    // MARK: Transport (per-app play / pause)
+
+    /// Apps we paused ourselves, and when.
+    ///
+    /// Two jobs. It keeps a paused app listed in the menu — Core Audio drops it
+    /// from "running output" a beat after the sound stops, which would otherwise
+    /// make the row vanish before the user could start it again. And the
+    /// timestamp guards against that same lag in reverse: for a moment after we
+    /// pause, the HAL still reports the app as playing, so we trust our own flag
+    /// over `isRunningOutput` until `pauseGrace` has passed.
+    @Published private(set) var pausedAt: [AudioObjectID: Date] = [:]
+
+    /// How long our own pause outranks Core Audio's running-output flag.
+    private let pauseGrace: TimeInterval = 2.5
+
+    /// Why the last transport command failed, per app — automation access not
+    /// granted, or a browser with JavaScript-from-Apple-Events turned off.
+    @Published private(set) var transportErrors: [AudioObjectID: String] = [:]
+
+    /// "Play one, pause the rest." On by default; the menu exposes a toggle.
+    @Published var pauseOthersOnPlay: Bool =
+        UserDefaults.standard.object(forKey: "pauseOthersOnPlay") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(pauseOthersOnPlay, forKey: Self.pauseOthersKey) }
+    }
+    private static let pauseOthersKey = "pauseOthersOnPlay"
+
+    /// What the menu lists: everything making sound, plus anything we paused, so
+    /// the user can start it again.
+    var visible: [AudioProcess] {
+        processes
+            .filter { $0.isPlaying || pausedAt[$0.id] != nil }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    func canControlTransport(_ process: AudioProcess) -> Bool {
+        NowPlayingService.supportsTransport(process.resolvedBundleID)
+    }
+
+    func canSkipTracks(_ process: AudioProcess) -> Bool {
+        NowPlayingService.supportsSkip(process.resolvedBundleID)
+    }
+
+    /// Best available answer to "is this app making sound right now": the app's
+    /// own reported state where we can read it, else Core Audio's running-output
+    /// flag (which is what browsers fall back on).
+    func isPlayingNow(_ process: AudioProcess) -> Bool {
+        if let track = nowPlaying[process.id] { return track.isPlaying }
+        return process.isPlaying && pausedAt[process.id] == nil
+    }
+
+    func togglePlayPause(_ process: AudioProcess) {
+        if isPlayingNow(process) { pause(process) } else { resume(process) }
+    }
+
+    func pause(_ process: AudioProcess) {
         guard let bundleID = process.resolvedBundleID,
-              NowPlayingService.supports(bundleID) else { return }
+              NowPlayingService.supportsTransport(bundleID) else { return }
+        let affected = markPaused(true, bundleID: bundleID)
+        dispatch([TransportJob(id: process.id, bundleID: bundleID, command: .pause, affected: affected)])
+    }
 
-        if command == .playPause, let current = nowPlaying[process.id] {
-            nowPlaying[process.id] = NowPlaying(title: current.title,
-                                                artist: current.artist,
-                                                album: current.album,
-                                                isPlaying: !current.isPlaying)
+    /// Resume this app, first pausing everything else that's playing when
+    /// `pauseOthersOnPlay` is set. The pauses are queued ahead of the resume so
+    /// the two never overlap audibly.
+    func resume(_ process: AudioProcess) {
+        guard let bundleID = process.resolvedBundleID,
+              NowPlayingService.supportsTransport(bundleID) else { return }
+
+        var jobs: [TransportJob] = []
+        if pauseOthersOnPlay {
+            for other in otherPlayingApps(excluding: bundleID) {
+                let affected = markPaused(true, bundleID: other.bundleID)
+                jobs.append(TransportJob(id: other.id, bundleID: other.bundleID,
+                                         command: .pause, affected: affected))
+            }
         }
+        let affected = markPaused(false, bundleID: bundleID)
+        jobs.append(TransportJob(id: process.id, bundleID: bundleID,
+                                 command: .resume, affected: affected))
+        dispatch(jobs)
+    }
 
+    func skip(_ command: NowPlayingService.Command, to process: AudioProcess) {
+        guard let bundleID = process.resolvedBundleID,
+              NowPlayingService.supportsSkip(bundleID) else { return }
+        dispatch([TransportJob(id: process.id, bundleID: bundleID, command: command, affected: [])])
+    }
+
+    private struct TransportJob {
+        let id: AudioObjectID
+        let bundleID: String
+        let command: NowPlayingService.Command
+        /// Exactly the processes whose paused flag this job flipped, so a failure
+        /// can put back what it changed. One app can back several Core Audio
+        /// processes, so this is a list, not just `id`.
+        let affected: [AudioObjectID]
+    }
+
+    /// Every *other* app currently playing that we can script, deduped by bundle
+    /// id — one browser routinely surfaces as several Core Audio helper
+    /// processes, and we only want to script it once.
+    private func otherPlayingApps(excluding bundleID: String) -> [(id: AudioObjectID, bundleID: String)] {
+        var seen: Set<String> = [bundleID]
+        var result: [(id: AudioObjectID, bundleID: String)] = []
+        for process in visible {
+            guard let other = process.resolvedBundleID,
+                  !seen.contains(other),
+                  NowPlayingService.supportsTransport(other),
+                  isPlayingNow(process) else { continue }
+            seen.insert(other)
+            result.append((process.id, other))
+        }
+        return result
+    }
+
+    /// Flip the paused flag optimistically so the UI responds instantly, across
+    /// every process backed by this app — one browser routinely surfaces as
+    /// several Core Audio processes, and a scripted pause hits all of them at
+    /// once. Returns the ids it actually touched so a failed command can revert
+    /// precisely that set. The next poll reconciles with what the app did.
+    @discardableResult
+    private func markPaused(_ paused: Bool, bundleID: String) -> [AudioObjectID] {
+        var touched: [AudioObjectID] = []
+        for process in processes where process.resolvedBundleID == bundleID {
+            if paused {
+                // Only ever flag a row that's already on screen. Flagging an idle
+                // helper process would conjure a phantom "Paused" row for
+                // something that never made a sound.
+                guard process.isPlaying || pausedAt[process.id] != nil else { continue }
+                pausedAt[process.id] = Date()
+            } else {
+                guard pausedAt.removeValue(forKey: process.id) != nil || process.isPlaying else { continue }
+            }
+            touched.append(process.id)
+            if let track = nowPlaying[process.id] {
+                nowPlaying[process.id] = track.settingPlaying(!paused)
+            }
+            transportErrors.removeValue(forKey: process.id)
+        }
+        return touched
+    }
+
+    /// Run scripted commands in order on the script queue, then pull fresh state
+    /// once the apps have had a beat to settle. A command that fails rolls its
+    /// optimistic flag back, so a row can't claim to be paused when it isn't.
+    private func dispatch(_ jobs: [TransportJob]) {
         scriptQueue.async { [weak self] in
-            NowPlayingService.send(command, bundleID: bundleID)
-            // Give the app a beat to settle on the new track/state, then pull
-            // fresh metadata so next/previous update the title promptly.
+            var failures: [(job: TransportJob, hint: String)] = []
+            for job in jobs {
+                if let error = NowPlayingService.send(job.command, bundleID: job.bundleID) {
+                    failures.append((job, error.hint))
+                }
+            }
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 350_000_000)
-                self?.refreshNowPlaying()
+                guard let self else { return }
+                let now = Date()
+                for failure in failures {
+                    // Revert exactly the set the optimistic flag touched. Clearing
+                    // only the clicked process would strand its siblings showing
+                    // "Paused" for a pause that never happened.
+                    for id in failure.job.affected {
+                        switch failure.job.command {
+                        case .pause:  self.pausedAt.removeValue(forKey: id)
+                        case .resume: self.pausedAt[id] = now
+                        default:      break
+                        }
+                    }
+                    self.transportErrors[failure.job.id] = failure.hint
+                }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                self.reload()
             }
         }
     }
@@ -298,12 +448,28 @@ final class AudioProcessController: ObservableObject {
                 let living = Set(result.map(\.id))
                 self.pruneVanishedTaps(livingIDs: living)
                 self.nowPlaying = self.nowPlaying.filter { living.contains($0.key) }
+                self.transportErrors = self.transportErrors.filter { living.contains($0.key) }
+                self.reconcilePaused(with: result)
                 self.refreshNowPlaying()
             }
         }
     }
 
-    /// Read track metadata for the currently playing processes that come from a
+    /// Drop our paused flag for anything that has gone away or is audibly
+    /// playing again — the latter meaning the user hit play in the app itself.
+    /// Only after `pauseGrace`, because the HAL keeps reporting running-output
+    /// for a moment after a pause actually takes effect.
+    private func reconcilePaused(with result: [AudioProcess]) {
+        guard !pausedAt.isEmpty else { return }
+        let now = Date()
+        let byID = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+        pausedAt = pausedAt.filter { id, at in
+            guard let process = byID[id] else { return false }
+            return !(process.isPlaying && now.timeIntervalSince(at) > pauseGrace)
+        }
+    }
+
+    /// Read track metadata for the listed processes that come from a
     /// scriptable media app, off the main thread, and publish the results.
     /// Coalesced so a slow AppleScript round-trip can't pile up behind the poll.
     private func refreshNowPlaying() {
@@ -311,14 +477,16 @@ final class AudioProcessController: ObservableObject {
 
         // Resolve the scripting targets on the main thread (AppKit-backed
         // bundle-id lookup), then hand just the ids off to the script queue.
-        let targets: [(id: AudioObjectID, bundleID: String)] = playing.compactMap { process in
+        // `visible`, not `playing`: an app we paused keeps its row, and its
+        // track title should stay with it.
+        let targets: [(id: AudioObjectID, bundleID: String)] = visible.compactMap { process in
             guard let bundleID = process.resolvedBundleID,
-                  NowPlayingService.supports(bundleID) else { return nil }
+                  NowPlayingService.supportsMetadata(bundleID) else { return nil }
             return (process.id, bundleID)
         }
 
-        // Drop metadata for anything no longer playing (e.g. paused mid-session).
-        let playingIDs = Set(targets.map(\.id))
+        // Drop metadata for anything that has dropped off the list entirely.
+        let playingIDs = Set(targets.map(\.id))  // scriptable rows still on screen
         if nowPlaying.keys.contains(where: { !playingIDs.contains($0) }) {
             nowPlaying = nowPlaying.filter { playingIDs.contains($0.key) }
         }

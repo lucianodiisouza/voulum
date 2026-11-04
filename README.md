@@ -14,6 +14,8 @@ gets:
 - 🔎 **a jump button** — bring that app to the front so you can find the sound
 - 🔊 **a volume slider** — from mute, through normal, up to 3× boost
 - 🔇 **a mute toggle** — silence one app without touching the rest
+- ⏯️ **a play/pause button** — actually stop that app's playback, not just
+  silence it. Pressing play on one pauses the others, unless you turn that off
 
 The list updates itself while the menu is open — no refresh needed.
 
@@ -57,6 +59,16 @@ Open ▸ Open**.) The Terminal command above is the most reliable method.
   have Voulum start automatically. macOS remembers the setting across reboots.
 
 ## FAQ
+
+**Why doesn't every app get a play/pause button?**
+macOS has no general "pause that app" command, so Voulum drives each app through
+its own scripting interface — which means an allow-list: Spotify, Apple Music,
+TV, VLC, QuickTime Player, and Safari/Chrome/Brave/Edge/Vivaldi for anything
+playing in a tab. Browsers additionally need "Allow JavaScript from Apple Events"
+switched on in their Develop/Developer menu, and can't reach a player embedded
+from another domain (most course-platform video). Voulum tells you which of these
+it ran into rather than pretending it paused. Mute and the volume slider work on
+any app either way.
 
 **Is it safe / what's the audio permission for?**
 Voulum uses Apple's official Core Audio "process tap" API to intercept an app's

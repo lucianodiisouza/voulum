@@ -15,13 +15,13 @@ struct MenuView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
-            let playing = controller.playing
-            if playing.isEmpty {
+            let rows = controller.visible
+            if rows.isEmpty {
                 emptyState
             } else {
-                ForEach(playing) { process in
+                ForEach(rows) { process in
                     AudioProcessRow(process: process)
-                    if process.id != playing.last?.id {
+                    if process.id != rows.last?.id {
                         Divider().padding(.horizontal, 12)
                     }
                 }
@@ -215,6 +215,11 @@ struct MenuView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Toggle("Pause others when I press play", isOn: $controller.pauseOthersOnPlay)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
+                .help("Starting one app pauses every other app Voulum can control.")
+
             HStack {
                 Toggle("Launch at login", isOn: launchAtLoginBinding)
                     .toggleStyle(.checkbox)
@@ -315,14 +320,14 @@ struct AudioProcessRow: View {
                             .foregroundStyle(.secondary)
                     } else {
                         MarqueeText(text: process.name, weight: .medium)
-                        Text(process.isPlaying ? "Playing" : "Idle")
+                        Text(statusLabel)
                             .font(.caption)
-                            .foregroundStyle(process.isPlaying ? Color.green : .secondary)
+                            .foregroundStyle(controller.isPlayingNow(process) ? Color.green : .secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if controller.nowPlaying(for: process) != nil {
+                if controller.canControlTransport(process) {
                     transportControls
                 }
 
@@ -356,14 +361,29 @@ struct AudioProcessRow: View {
             }
 
             if let error = controller.tapErrors[process.id] {
-                Text(errorHint(error))
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
+                hint(errorHint(error))
+            }
+            if let hintText = controller.transportErrors[process.id] {
+                hint(hintText)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.red)
+            .lineLimit(3)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// "Playing" / "Paused" / "Idle". Paused is only ever something *we* did —
+    /// an app the user paused elsewhere simply stops being listed.
+    private var statusLabel: String {
+        if controller.isPlayingNow(process) { return "Playing" }
+        return controller.pausedAt[process.id] != nil ? "Paused" : "Idle"
     }
 
     private var percentLabel: String {
@@ -377,31 +397,37 @@ struct AudioProcessRow: View {
         "Couldn't tap audio. Grant Voulum permission in System Settings ▸ Privacy & Security ▸ Microphone, then retry."
     }
 
-    /// Previous / play-pause / next, for the scriptable media apps. Only shown
-    /// when we have now-playing metadata, so the icon reflects real state.
+    /// Previous / play-pause / next for any app we can script. Skip buttons only
+    /// appear where they mean something — a browser can be paused and resumed,
+    /// but has no notion of a next track.
     @ViewBuilder private var transportControls: some View {
-        let isPlaying = controller.nowPlaying(for: process)?.isPlaying ?? false
+        let isPlaying = controller.isPlayingNow(process)
+        let canSkip = controller.canSkipTracks(process)
         HStack(spacing: 8) {
-            Button {
-                controller.sendMediaCommand(.previous, to: process)
-            } label: {
-                Image(systemName: "backward.fill")
+            if canSkip {
+                Button {
+                    controller.skip(.previous, to: process)
+                } label: {
+                    Image(systemName: "backward.fill")
+                }
+                .help("Previous track")
             }
-            .help("Previous track")
 
             Button {
-                controller.sendMediaCommand(.playPause, to: process)
+                controller.togglePlayPause(process)
             } label: {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
             }
-            .help(isPlaying ? "Pause" : "Play")
+            .help(isPlaying ? "Pause \(process.name)" : "Play \(process.name)")
 
-            Button {
-                controller.sendMediaCommand(.next, to: process)
-            } label: {
-                Image(systemName: "forward.fill")
+            if canSkip {
+                Button {
+                    controller.skip(.next, to: process)
+                } label: {
+                    Image(systemName: "forward.fill")
+                }
+                .help("Next track")
             }
-            .help("Next track")
         }
         .buttonStyle(.borderless)
         .font(.system(size: 11))
