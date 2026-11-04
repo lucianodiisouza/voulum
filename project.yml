@@ -1,6 +1,6 @@
 name: Voulum
 options:
-  bundleIdPrefix: com.voulum
+  bundleIdPrefix: dev.oprimo
   deploymentTarget:
     macOS: "14.4"
   createIntermediateGroups: true
@@ -25,7 +25,7 @@ targets:
       - path: Sources/Voulum
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.voulum.app
+        PRODUCT_BUNDLE_IDENTIFIER: dev.oprimo.voulum
         PRODUCT_NAME: Voulum
         INFOPLIST_FILE: Sources/Voulum/Info.plist
         CODE_SIGN_ENTITLEMENTS: Sources/Voulum/Voulum.entitlements

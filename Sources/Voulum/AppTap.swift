@@ -33,7 +33,7 @@ final class AppTap: @unchecked Sendable {
     private var tapID: AudioObjectID = .unknown
     private var aggregateID: AudioObjectID = .unknown
     private var ioProcID: AudioDeviceIOProcID?
-    private let ioQueue = DispatchQueue(label: "com.voulum.tap.io", qos: .userInteractive)
+    private let ioQueue = DispatchQueue(label: "dev.oprimo.voulum.tap.io", qos: .userInteractive)
 
     /// [0] target gain, [1] current (ramped) gain, [2] peak since last read,
     /// [3] limiter on (0/1), [4] loudest buffer RMS since last read.

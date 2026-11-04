@@ -131,6 +131,7 @@ final class Preferences: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        Self.migrateLegacyDomain(into: defaults)
         func load<T: Decodable>(_ key: String, _ fallback: T) -> T {
             guard let data = defaults.data(forKey: key),
                   let value = try? JSONDecoder().decode(T.self, from: data) else { return fallback }
@@ -254,7 +255,24 @@ final class Preferences: ObservableObject {
         defaults.set(Array(hiddenDevices), forKey: Keys.hiddenDevices)
     }
 
+    /// 0.4.1 and older shipped as com.voulum.app. The first launch under the new
+    /// identifier copies that domain over, so volumes, presets and shortcuts
+    /// survive the rename. Keys already set here win.
+    static let legacyDomain = "com.voulum.app"
+
+    private static func migrateLegacyDomain(into defaults: UserDefaults) {
+        guard Bundle.main.bundleIdentifier != legacyDomain,
+              !defaults.bool(forKey: Keys.migratedLegacyDomain),
+              let old = UserDefaults.standard.persistentDomain(forName: legacyDomain) else { return }
+        for (key, value) in old where defaults.object(forKey: key) == nil {
+            defaults.set(value, forKey: key)
+        }
+        defaults.set(true, forKey: Keys.migratedLegacyDomain)
+        log.info("Copied \(old.count) settings from \(legacyDomain, privacy: .public)")
+    }
+
     private enum Keys {
+        static let migratedLegacyDomain = "migratedLegacyDomain"
         static let apps = "apps.v1"
         static let pinned = "pinnedApps"
         static let ignored = "ignoredApps"

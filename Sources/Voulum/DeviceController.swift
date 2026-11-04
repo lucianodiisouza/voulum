@@ -96,7 +96,7 @@ final class DeviceController: ObservableObject {
     let changes = PassthroughSubject<Void, Never>()
 
     private let prefs = Preferences.shared
-    private let halQueue = DispatchQueue(label: "com.voulum.devices", qos: .userInitiated)
+    private let halQueue = DispatchQueue(label: "dev.oprimo.voulum.devices", qos: .userInitiated)
     private var systemToken: PropertyListenerToken?
     private var defaultVolumeToken: PropertyListenerToken?
     private var knownOutputUIDs: Set<String>?
