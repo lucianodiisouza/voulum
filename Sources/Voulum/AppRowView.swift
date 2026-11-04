@@ -26,7 +26,7 @@ struct AppRowView: View {
             HStack(spacing: 10) {
                 Button { app.bringToFront() } label: {
                     AppIconWithLevel(icon: app.icon, level: meters.levels[app.key] ?? 0,
-                                     active: app.isRunning)
+                                     active: app.isRunning, playing: engine.isPlayingNow(app))
                 }
                 .buttonStyle(.plain)
                 .help(app.isRunning ? "Show \(app.name)" : "Open \(app.name)")

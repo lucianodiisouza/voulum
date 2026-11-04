@@ -165,12 +165,23 @@ struct AppIconWithLevel: View {
     let icon: NSImage
     var level: Float = 0
     var active = true
+    /// Playing but not metered (Voulum leaves untouched apps alone, so there's
+    /// no signal to read): breathe gently instead of showing a level.
+    var playing = false
     var size: CGFloat = 30
+
+    @State private var breathe = false
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 2.5)
+            if playing && level < 0.01 {
+                Circle()
+                    .stroke(Color.green.opacity(breathe ? 0.55 : 0.12), lineWidth: 2.5)
+                    .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: breathe)
+                    .onAppear { breathe = true }
+            }
             Circle()
                 .trim(from: 0, to: CGFloat(level))
                 .stroke(levelColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
