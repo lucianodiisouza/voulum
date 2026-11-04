@@ -132,6 +132,7 @@ struct PopupView: View {
     private var footer: some View {
         VStack(spacing: 0) {
             controls
+            Divider().padding(.horizontal, 16)
             UpdateRow(updater: AppDelegate.updater)
         }
     }
@@ -162,8 +163,7 @@ struct PopupView: View {
         .font(.callout)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
-        .padding(.top, 9)
-        .padding(.bottom, 4)
+        .padding(.vertical, 9)
     }
 }
 
@@ -176,17 +176,21 @@ private struct UpdateRow: View {
         HStack {
             Text(verbatim: "Voulum \(Updater.version)")
                 .monospacedDigit()
+                .foregroundStyle(.secondary)
             Spacer()
             if updater.isConfigured {
-                Button("Check for Updates…") { updater.checkForUpdates() }
-                    .buttonStyle(.borderless)
-                    .disabled(!updater.canCheckForUpdates)
+                Button {
+                    updater.checkForUpdates()
+                } label: {
+                    Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.borderless)
+                .disabled(!updater.canCheckForUpdates)
             }
         }
-        .font(.caption2)
-        .foregroundStyle(.tertiary)
+        .font(.caption)
         .padding(.horizontal, 16)
-        .padding(.bottom, 9)
+        .padding(.vertical, 10)
     }
 }
 
