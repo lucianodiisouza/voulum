@@ -117,6 +117,47 @@ final class PopupPanel: NSPanel {
         return image
     }()
 
+    /// How tall the panel can be under `button`: down to the bottom of the
+    /// screen's usable area, and above anything parked along the bottom edge
+    /// that the system doesn't count (a Dock replacement, say, which floats
+    /// over windows without reserving space).
+    static func room(below button: NSStatusBarButton) -> CGFloat {
+        guard let buttonWindow = button.window,
+              let screen = buttonWindow.screen ?? NSScreen.main else { return 10_000 }
+        let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        let top = min(anchor.minY - 6, screen.visibleFrame.maxY)
+        let bottom = max(screen.visibleFrame.minY, screen.frame.minY + bottomObstruction(on: screen))
+        return max(200, top - bottom - 10)
+    }
+
+    /// The height of floating windows that sit on the bottom edge of `screen`,
+    /// span a good part of its width and stay above normal windows.
+    private static func bottomObstruction(on screen: NSScreen) -> CGFloat {
+        guard let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                       kCGNullWindowID) as? [[String: Any]] else { return 0 }
+        // Window bounds are top-left based, measured from the primary screen.
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+        let frame = screen.frame
+        let screenTop = primaryHeight - frame.maxY
+        let screenBottom = primaryHeight - frame.minY
+        let me = ProcessInfo.processInfo.processIdentifier
+        var inset: CGFloat = 0
+        for window in windows {
+            guard (window[kCGWindowLayer as String] as? Int ?? 0) > 0,
+                  (window[kCGWindowOwnerPID as String] as? Int32) != me,
+                  let dict = window[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: dict) else { continue }
+            let onBottomEdge = bounds.maxY >= screenBottom - 2 && bounds.maxY <= screenBottom + 2
+            let inLowerHalf = bounds.minY > screenTop + frame.height / 2
+            let wide = bounds.width >= frame.width * 0.3
+            let onScreen = bounds.minX < frame.maxX && bounds.maxX > frame.minX
+            if onBottomEdge && inLowerHalf && wide && onScreen {
+                inset = max(inset, screenBottom - bounds.minY)
+            }
+        }
+        return inset
+    }
+
     /// Place the panel's top edge just under the status item, centred on it
     /// but kept inside the screen.
     func position(below button: NSStatusBarButton, size: NSSize) {

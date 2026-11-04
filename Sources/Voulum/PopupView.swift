@@ -10,6 +10,8 @@ final class PopupModel: ObservableObject {
     @Published var expandedEQ: String?
     @Published var devicesExpanded = false
     @Published var showingInputs = false
+    /// The tallest the popup may be on its screen, set as it opens.
+    @Published var maxHeight: CGFloat = 10_000
 }
 
 struct PopupView: View {
@@ -18,10 +20,50 @@ struct PopupView: View {
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var model: PopupModel
 
-    @State private var listHeight: CGFloat = 0
-    private let maxListHeight: CGFloat = 470
+    @State private var contentHeight: CGFloat = 0
+    @State private var footerHeight: CGFloat = 0
+    /// Past this the popup scrolls even on a tall screen.
+    private let maxContentHeight: CGFloat = 760
 
+    /// Everything above the footer scrolls as one: the output, the mic, the
+    /// device list and the apps. It's as tall as it needs, up to what the
+    /// screen leaves; the footer always stays in view.
     var body: some View {
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    content
+                        .background(GeometryReader { geo in
+                            Color.clear
+                                .onAppear { contentHeight = geo.size.height }
+                                .onChange(of: geo.size.height) { _, h in contentHeight = h }
+                        })
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(height: min(max(contentHeight, 1), maxContentHeight,
+                                   max(160, model.maxHeight - footerHeight - 1)))
+                .onChange(of: model.focusedKey) { _, key in
+                    guard let key else { return }
+                    withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(key, anchor: .center) }
+                }
+            }
+
+            Divider().padding(.horizontal, 12)
+            footer
+                .background(GeometryReader { geo in
+                    Color.clear
+                        .onAppear { footerHeight = geo.size.height }
+                        .onChange(of: geo.size.height) { _, h in footerHeight = h }
+                })
+        }
+        .frame(width: 380)
+        .environment(\.deskStyle, prefs.popupStyle.effective == .desk)
+        // Cream silkscreen instead of white; secondary text follows it.
+        .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
+        .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             OutputCard()
                 .padding(.horizontal, 12)
@@ -38,15 +80,7 @@ struct PopupView: View {
             Divider().padding(.horizontal, 12)
 
             appsSection
-
-            Divider().padding(.horizontal, 12)
-            footer
         }
-        .frame(width: 380)
-        .environment(\.deskStyle, prefs.popupStyle.effective == .desk)
-        // Cream silkscreen instead of white; secondary text follows it.
-        .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
-        .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
     }
 
     // MARK: Apps
@@ -82,30 +116,15 @@ struct PopupView: View {
             if apps.isEmpty {
                 emptyState
             } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        VStack(spacing: 2) {
-                            ForEach(apps) { app in
-                                AppRowView(app: app, focused: model.focusedKey == app.key,
-                                           expandedEQ: $model.expandedEQ)
-                                    .id(app.key)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.bottom, 8)
-                        .background(GeometryReader { geo in
-                            Color.clear
-                                .onAppear { listHeight = geo.size.height }
-                                .onChange(of: geo.size.height) { _, h in listHeight = h }
-                        })
-                    }
-                    .scrollBounceBehavior(.basedOnSize)
-                    .frame(height: min(max(listHeight, 60), maxListHeight))
-                    .onChange(of: model.focusedKey) { _, key in
-                        guard let key else { return }
-                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(key, anchor: .center) }
+                VStack(spacing: 2) {
+                    ForEach(apps) { app in
+                        AppRowView(app: app, focused: model.focusedKey == app.key,
+                                   expandedEQ: $model.expandedEQ)
+                            .id(app.key)
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
 
             if !engine.audioPermissionGranted && !apps.isEmpty {
