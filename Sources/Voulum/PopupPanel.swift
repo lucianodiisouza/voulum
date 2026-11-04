@@ -45,6 +45,11 @@ final class PopupPanel: NSPanel {
         hosted.translatesAutoresizingMaskIntoConstraints = true
         hosted.autoresizingMask = [.width, .height]
         let backdrop = Self.backdrop(for: style.effective)
+        // Clip the content too, so row highlights can't poke past the corners.
+        hosted.wantsLayer = true
+        hosted.layer?.cornerRadius = Self.cornerRadius
+        hosted.layer?.cornerCurve = .continuous
+        hosted.layer?.masksToBounds = true
         if #available(macOS 26, *), let glass = backdrop as? NSGlassEffectView {
             glass.contentView = hosted
         } else {
@@ -57,6 +62,7 @@ final class PopupPanel: NSPanel {
         // panel's square frame around the rounded glass.
         hasShadow = style.effective != .glass
         invalidateShadow()
+        DispatchQueue.main.async { [weak self] in self?.invalidateShadow() }
     }
 
     private static func backdrop(for style: PopupStyle) -> NSView {
@@ -69,14 +75,24 @@ final class PopupPanel: NSPanel {
         frosted.material = .popover
         frosted.blendingMode = .behindWindow
         frosted.state = .active
-        frosted.wantsLayer = true
-        frosted.layer?.cornerRadius = cornerRadius
-        frosted.layer?.cornerCurve = .continuous
-        frosted.layer?.masksToBounds = true
-        frosted.layer?.borderWidth = 0.5
-        frosted.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        // A mask image, not a layer corner radius: it rounds the blur itself
+        // and the window shadow follows it, so no square corners show through.
+        frosted.maskImage = roundedMask
         return frosted
     }
+
+    /// Stretchable rounded-rect mask matching the panel's corners.
+    private static let roundedMask: NSImage = {
+        let edge = cornerRadius * 2 + 1
+        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: cornerRadius, left: cornerRadius, bottom: cornerRadius, right: cornerRadius)
+        image.resizingMode = .stretch
+        return image
+    }()
 
     /// Place the panel's top edge just under the status item, centred on it
     /// but kept inside the screen.
