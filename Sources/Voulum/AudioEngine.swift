@@ -461,8 +461,15 @@ final class AudioEngine: ObservableObject {
             current = parentPID(of: p)
             hops += 1
         }
-        // Helpers launched by launchd (XPC) have no parent link; fall back to the
-        // app whose bundle contains the helper's executable.
+        // XPC helpers are launched by launchd, so they have no parent link.
+        // macOS still tracks which app they work for: Safari's WebKit GPU and
+        // media helpers report Safari as their responsible process.
+        if let responsible = responsiblePID(of: pid), responsible != pid,
+           let app = NSRunningApplication(processIdentifier: responsible),
+           app.activationPolicy == .regular {
+            return app
+        }
+        // Otherwise, the app whose bundle contains the helper's executable.
         if let path = executablePath(pid),
            let host = NSWorkspace.shared.runningApplications.first(where: {
                $0.activationPolicy == .regular && $0.bundleURL.map { path.hasPrefix($0.path + "/") } == true
@@ -470,6 +477,19 @@ final class AudioEngine: ObservableObject {
             return host
         }
         return firstMatch
+    }
+
+    /// `responsibility_get_pid_responsible_for_pid`, exported by libSystem but
+    /// not in a public header, so it's looked up at runtime.
+    nonisolated private static let responsibleLookup: (@convention(c) (pid_t) -> pid_t)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "responsibility_get_pid_responsible_for_pid") else { return nil }
+        return unsafeBitCast(symbol, to: (@convention(c) (pid_t) -> pid_t).self)
+    }()
+
+    nonisolated private static func responsiblePID(of pid: pid_t) -> pid_t? {
+        guard let lookup = responsibleLookup else { return nil }
+        let responsible = lookup(pid)
+        return responsible > 0 ? responsible : nil
     }
 
     nonisolated private static func parentPID(of pid: pid_t) -> pid_t? {
