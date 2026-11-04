@@ -95,8 +95,8 @@ apps Voulum hears, pick a look.
 
 ### Download
 
-1. Download **`Voulum-vX.Y.Z-macos.dmg`** from the
-   [latest release](../../releases/latest) and open it.
+1. Download **[Voulum-macos.dmg](../../releases/latest/download/Voulum-macos.dmg)**
+   (always the latest release) and open it.
 2. Drag **Voulum.app** onto **Applications**.
 3. Open **Voulum**. Look for its icon in your menu bar.
 
