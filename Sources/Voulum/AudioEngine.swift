@@ -60,6 +60,7 @@ final class AudioEngine: ObservableObject {
     private let prefs = Preferences.shared
     private let devices = DeviceController.shared
     private var taps: [String: AppTap] = [:]
+    private let master = MasterMeter()
     /// The concrete device UIDs each tap was last routed to.
     private var appliedRoutes: [String: [String]] = [:]
 
@@ -186,13 +187,34 @@ final class AudioEngine: ObservableObject {
             Task { @MainActor in
                 self?.reload()
                 self?.devices.refreshLevels()
+                self?.syncMaster()
             }
         }
         reload()
         devices.refreshLevels()
+        syncMaster()
         meters.start { [weak self] in
             guard let self else { return [:] }
-            return self.taps.mapValues { $0.isActive ? $0.takeLevels() : TapLevels() }
+            var levels = self.taps.mapValues { $0.isActive ? $0.takeLevels() : TapLevels() }
+            if self.masterRunning { levels[LevelMeters.masterKey] = self.master.takeLevels() }
+            return levels
+        }
+    }
+
+    private var masterRunning = false
+
+    /// The desk style's master meter runs while the popup is open, and only
+    /// once audio access was granted, so opening the popup never asks for it.
+    private func syncMaster() {
+        let wanted = pollTimer != nil && audioPermissionGranted && prefs.popupStyle.effective == .desk
+        masterRunning = wanted
+        let master = self.master
+        if wanted {
+            let excluded = taps.values.filter(\.isActive).flatMap(\.processIDs)
+            let output = devices.defaultOutputID
+            halQueue.async { master.run(excluding: excluded, output: output) }
+        } else {
+            halQueue.async { master.stop() }
         }
     }
 
@@ -203,6 +225,7 @@ final class AudioEngine: ObservableObject {
         pollTimer?.invalidate()
         pollTimer = nil
         meters.stop()
+        syncMaster()
     }
 
     func shutdown() {
@@ -578,6 +601,8 @@ final class LevelMeters: ObservableObject {
     @Published private(set) var hot: Set<String> = []
     /// Per-channel readings, for the desk style's double meters.
     @Published private(set) var stereo: [String: StereoLevel] = [:]
+    /// The key the master meter's readings use in `levels` and `stereo`.
+    static let masterKey = "voulum.master"
     private var timer: Timer?
 
     /// Loudness (RMS) on a −54…−6 dBFS scale, so typical music sits mid-scale

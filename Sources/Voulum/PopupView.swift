@@ -213,6 +213,7 @@ struct OutputCard: View {
     @EnvironmentObject private var devices: DeviceController
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var model: PopupModel
+    @EnvironmentObject private var meters: LevelMeters
     @Environment(\.deskStyle) private var desk
 
     var body: some View {
@@ -264,9 +265,21 @@ struct OutputCard: View {
                                 devices.toggleMute(device)
                             }
                         }
-                        VolumeSlider(value: Binding(get: { level.volume },
-                                                    set: { devices.setVolume($0, for: device) }),
-                                     muted: level.muted, step: prefs.volumeStep.fraction)
+                        if desk {
+                            // The master: everything that reaches this output.
+                            VStack(spacing: 5) {
+                                let stereo = meters.stereo[LevelMeters.masterKey] ?? StereoLevel()
+                                LEDMeter(left: stereo.left, right: stereo.right,
+                                         clipping: meters.hot.contains(LevelMeters.masterKey))
+                                VolumeSlider(value: Binding(get: { level.volume },
+                                                            set: { devices.setVolume($0, for: device) }),
+                                             muted: level.muted, step: prefs.volumeStep.fraction)
+                            }
+                        } else {
+                            VolumeSlider(value: Binding(get: { level.volume },
+                                                        set: { devices.setVolume($0, for: device) }),
+                                         muted: level.muted, step: prefs.volumeStep.fraction)
+                        }
                         Text(level.muted ? String(localized: "Muted") : level.volume.percentLabel)
                             .font(.system(.caption, design: desk ? .monospaced : .rounded).weight(.semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
