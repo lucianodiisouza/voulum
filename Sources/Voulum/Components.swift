@@ -4,6 +4,11 @@ import SwiftUI
 extension EnvironmentValues {
     /// The popup is drawn as a mixing desk (`PopupStyle.desk`).
     @Entry var deskStyle = false
+    /// The view is on screen. The popup's panel is only ordered out when it
+    /// closes, so its views stay alive: anything that animates on its own
+    /// must stop when this is false, or it keeps the main thread rendering
+    /// an invisible window.
+    @Entry var onScreen = true
 }
 
 extension Color {
@@ -259,16 +264,18 @@ struct AppIconWithLevel: View {
     var size: CGFloat = 30
 
     @State private var breathe = false
+    @Environment(\.onScreen) private var onScreen
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 2.5)
-            if playing && level < 0.01 {
+            if playing && level < 0.01 && onScreen {
                 Circle()
                     .stroke(Color.green.opacity(breathe ? 0.55 : 0.12), lineWidth: 2.5)
                     .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: breathe)
                     .onAppear { breathe = true }
+                    .onDisappear { breathe = false }
             }
             Circle()
                 .trim(from: 0, to: CGFloat(level))
