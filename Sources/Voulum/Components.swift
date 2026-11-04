@@ -4,11 +4,6 @@ import SwiftUI
 extension EnvironmentValues {
     /// The popup is drawn as a mixing desk (`PopupStyle.desk`).
     @Entry var deskStyle = false
-    /// The view is on screen. The popup's panel is only ordered out when it
-    /// closes, so its views stay alive: anything that animates on its own
-    /// must stop when this is false, or it keeps the main thread rendering
-    /// an invisible window.
-    @Entry var onScreen = true
 }
 
 extension Color {
@@ -257,20 +252,22 @@ struct AppIconWithLevel: View {
     var level: Float = 0
     var active = true
     /// Playing but not metered (Voulum leaves untouched apps alone, so there's
-    /// no signal to read): breathe gently instead of showing a level.
+    /// no signal to read): a steady green ring instead of a level.
     var playing = false
     /// Signal touching full scale.
     var clipping = false
     var size: CGFloat = 30
 
-    @Environment(\.onScreen) private var onScreen
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 2.5)
-            if playing && level < 0.01 && onScreen {
-                BreathingRing(lineWidth: 2.5)
+            if playing && level < 0.01 {
+                // Steady rather than breathing: any animation here re-lays
+                // out the whole popup every frame.
+                Circle()
+                    .stroke(Color.green.opacity(0.4), lineWidth: 2.5)
             }
             Circle()
                 .trim(from: 0, to: CGFloat(level))
@@ -292,57 +289,6 @@ struct AppIconWithLevel: View {
     private var levelColor: Color {
         if desk { return clipping ? .deskAmber : Color(red: 0.62, green: 0.88, blue: 0.36) }
         return clipping ? .orange : .green
-    }
-}
-
-/// A green ring that fades in and out, for an app that's playing but not
-/// metered. Core Animation runs the fade in the render server: as a SwiftUI
-/// `repeatForever` animation it re-laid out the whole popup every frame,
-/// about 17% CPU for as long as the popup stayed open.
-private struct BreathingRing: NSViewRepresentable {
-    var lineWidth: CGFloat
-
-    func makeNSView(context: Context) -> RingView { RingView(lineWidth: lineWidth) }
-    func updateNSView(_ view: RingView, context: Context) {}
-
-    final class RingView: NSView {
-        private let ring = CAShapeLayer()
-        private let lineWidth: CGFloat
-
-        init(lineWidth: CGFloat) {
-            self.lineWidth = lineWidth
-            super.init(frame: .zero)
-            wantsLayer = true
-            ring.fillColor = nil
-            ring.strokeColor = NSColor.systemGreen.cgColor
-            ring.lineWidth = lineWidth
-            ring.opacity = 0.12
-            layer?.addSublayer(ring)
-        }
-
-        required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-        override func layout() {
-            super.layout()
-            ring.frame = bounds
-            ring.path = CGPath(ellipseIn: bounds.insetBy(dx: lineWidth / 2, dy: lineWidth / 2), transform: nil)
-        }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            ring.removeAnimation(forKey: "breathe")
-            guard window != nil else { return }
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 0.12
-            fade.toValue = 0.55
-            fade.duration = 1.1
-            fade.autoreverses = true
-            fade.repeatCount = .infinity
-            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            ring.add(fade, forKey: "breathe")
-        }
     }
 }
 

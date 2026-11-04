@@ -61,7 +61,6 @@ struct PopupView: View {
         }
         .frame(width: 380)
         .environment(\.deskStyle, prefs.popupStyle.effective == .desk)
-        .environment(\.onScreen, model.isOpen)
         // Cream silkscreen instead of white; secondary text follows it.
         .foregroundStyle(prefs.popupStyle.effective == .desk ? AnyShapeStyle(Color.deskCream) : AnyShapeStyle(.primary))
         .animation(.snappy(duration: 0.22), value: model.devicesExpanded)
