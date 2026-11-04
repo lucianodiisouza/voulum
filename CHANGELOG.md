@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/lucianodiisouza/voulum/compare/v0.4.0...v0.5.0) (2026-11-04)
+
+
+### Features
+
+* per-app routing, EQ, shortcuts and notarized releases ([#13](https://github.com/lucianodiisouza/voulum/issues/13)) ([bd72b00](https://github.com/lucianodiisouza/voulum/commit/bd72b0033de76845bd3b57be66dfe1ec23a78ad5))
+
 ## [0.4.0](https://github.com/lucianodiisouza/voulum/compare/v0.3.1...v0.4.0) (2026-07-29)
 
 
