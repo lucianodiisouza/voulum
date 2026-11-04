@@ -12,7 +12,7 @@ import Foundation
 ///   voulum://reset?app=Spotify
 ///   voulum://output?device=MacBook Pro Speakers switch the system output
 ///   voulum://output-volume?level=30             system output volume (0–100)
-///   voulum://open · voulum://settings
+///   voulum://open · close · toggle · settings
 @MainActor
 enum URLCommands {
 
@@ -88,7 +88,11 @@ enum URLCommands {
         case "output-volume":
             guard let device = devices.defaultOutput, let level = query["level"].flatMap(Float.init) else { return }
             devices.setVolume(level / 100, for: device)
-        case "open", "toggle":
+        case "open":
+            StatusItemController.shared.open()
+        case "close":
+            StatusItemController.shared.close()
+        case "toggle":
             StatusItemController.shared.toggle()
         case "settings":
             SettingsWindowController.shared.show()
