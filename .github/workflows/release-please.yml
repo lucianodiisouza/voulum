@@ -8,6 +8,12 @@ name: release-please
 # attaches the .dmg. It must live here rather than in a separate
 # `on: release` workflow because a release created by the built-in GITHUB_TOKEN
 # does not trigger further workflows.
+#
+# Code signing + notarization are OPTIONAL and automatic: if the Apple secrets
+# (see docs/SIGNING.md) are configured, the .app is signed with a Developer ID
+# and the .dmg is notarized + stapled. If they are absent, it falls back to
+# ad-hoc signing (users clear quarantine manually — see README). So this file is
+# safe to run before the Apple Developer account exists.
 
 on:
   push:
@@ -38,6 +44,14 @@ jobs:
       contents: write
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
+      # True only when a signing certificate secret is present.
+      HAS_CERT: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+      # True only when a token for the Homebrew tap repo is present.
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+      # True when an App Store Connect API key is present for notarization
+      # (otherwise the Apple ID + app-specific password secrets are used).
+      HAS_NOTARY_KEY: ${{ secrets.NOTARY_API_KEY_P8_BASE64 != '' }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,34 +66,116 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build (Release)
-        run: |
-          xcodebuild \
-            -project Voulum.xcodeproj \
-            -scheme Voulum \
-            -configuration Release \
-            -destination 'generic/platform=macOS' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
+      # --- Signing: Developer ID (if secrets present) ------------------------
 
-      - name: Package .dmg
+      - name: Import Developer ID certificate
+        if: ${{ env.HAS_CERT == 'true' }}
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          APP="build/Build/Products/Release/Voulum.app"
-          # Ad-hoc sign so Gatekeeper accepts it once quarantine is cleared.
-          codesign --force --deep --sign - \
-            --entitlements Sources/Voulum/Voulum.entitlements "$APP"
-          STAGE="$(mktemp -d)/dmg"
-          mkdir -p "$STAGE"
-          cp -R "$APP" "$STAGE/"
-          ln -s /Applications "$STAGE/Applications"
-          DMG="Voulum-${TAG}-macos.dmg"
-          hdiutil create -volname "Voulum" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
-          echo "DMG=$DMG" >> "$GITHUB_ENV"
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PW="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Write notary API key
+        if: ${{ env.HAS_CERT == 'true' && env.HAS_NOTARY_KEY == 'true' }}
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_API_KEY_P8_BASE64 }}
+        run: |
+          echo "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary_key.p8"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/notary_key.p8" >> "$GITHUB_ENV"
+
+      # --- Build, sign, package, notarize ------------------------------------
+      # scripts/release.sh does all of it, the same way it runs locally. With
+      # no certificate it falls back to an ad-hoc signature.
+
+      - name: Build signed & notarized .dmg
+        if: ${{ env.HAS_CERT == 'true' }}
+        env:
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_API_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: scripts/release.sh "$TAG"
+
+      - name: Build ad-hoc signed .dmg
+        if: ${{ env.HAS_CERT != 'true' }}
+        run: scripts/release.sh --adhoc "$TAG"
+
+      - name: Clean up signing material
+        if: ${{ always() }}
+        run: |
+          rm -f "$RUNNER_TEMP/notary_key.p8"
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+
+      # --- Upload ------------------------------------------------------------
 
       - name: Attach .dmg to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$DMG" --clobber
+
+      # --- Homebrew: bump the cask in the tap (if token present) -------------
+      # Copies this repo's canonical Casks/voulum.rb into the tap repo with the
+      # new version + the uploaded DMG's sha256. Optional and automatic: skipped
+      # until HOMEBREW_TAP_TOKEN and the tap repo exist (see docs/HOMEBREW.md).
+      - name: Update Homebrew tap
+        if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${TAG#v}"
+          SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+          git clone --depth 1 \
+            "https://x-access-token:${TAP_TOKEN}@github.com/${{ github.repository_owner }}/homebrew-voulum.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/^  version \".*\"/  version \"${VERSION}\"/" \
+              -e "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" \
+              Casks/voulum.rb > tap/Casks/voulum.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/voulum.rb
+          git diff --cached --quiet && { echo "cask already up to date"; exit 0; }
+          git commit -m "voulum ${VERSION}"
+          git push
+      # --- Sparkle auto-update feed ---------------------------------------
+      # Signs the .dmg with the EdDSA private key and (re)builds appcast.xml,
+      # the RSS feed the running app polls (SUFeedURL in Info.plist). Skipped
+      # automatically until the signing secret is configured, so releases keep
+      # working before auto-update is switched on. See docs/UPDATES.md.
+      - name: Generate signed appcast
+        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SPARKLE_VERSION=2.6.4
+          curl -fsSL -o sparkle.tar.xz \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
+
+          # generate_appcast reads the version out of the .app inside each
+          # archive, so it only needs a folder of DMGs to work from.
+          mkdir -p updates
+          cp "$DMG" updates/
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > sparkle_ed_key
+          sparkle/bin/generate_appcast \
+            --ed-key-file sparkle_ed_key \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${TAG}/" \
+            updates
+          rm -f sparkle_ed_key
+
+          gh release upload "$TAG" updates/appcast.xml --clobber

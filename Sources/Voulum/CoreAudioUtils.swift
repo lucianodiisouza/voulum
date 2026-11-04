@@ -68,6 +68,21 @@ extension AudioObjectID {
         return value as? T
     }
 
+    // MARK: Writing
+
+    /// Writes a single fixed-size value (e.g. set the default output device, a
+    /// device's mute flag, or its scalar volume).
+    func write<T>(_ selector: AudioObjectPropertySelector,
+                  scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+                  element: AudioObjectPropertyElement = kAudioObjectPropertyElementMain,
+                  to value: T) throws {
+        var address = AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: element)
+        var value = value
+        let size = UInt32(MemoryLayout<T>.size)
+        let status = AudioObjectSetPropertyData(self, &address, 0, nil, size, &value)
+        guard status == noErr else { throw CoreAudioError.status(status, selector) }
+    }
+
     // MARK: Existence
 
     func hasProperty(_ selector: AudioObjectPropertySelector,
@@ -76,6 +91,82 @@ extension AudioObjectID {
         var address = AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: element)
         return AudioObjectHasProperty(self, &address)
     }
+
+    func isSettable(_ selector: AudioObjectPropertySelector,
+                    scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+                    element: AudioObjectPropertyElement = kAudioObjectPropertyElementMain) -> Bool {
+        var address = AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: element)
+        guard AudioObjectHasProperty(self, &address) else { return false }
+        var settable: DarwinBoolean = false
+        return AudioObjectIsPropertySettable(self, &address, &settable) == noErr && settable.boolValue
+    }
+
+    // MARK: Virtual main volume
+
+    /// The device's "virtual main" volume (0...1) — the single value macOS's own
+    /// volume slider drives. Unlike `kAudioDevicePropertyVolumeScalar` on the main
+    /// element, it works on devices that only expose per-channel volume (most
+    /// USB and Bluetooth hardware). nil when the device has no volume control.
+    func virtualMainVolume(scope: AudioObjectPropertyScope) -> Float? {
+        let selector = kAudioHardwareServiceDeviceProperty_VirtualMainVolume
+        guard hasProperty(selector, scope: scope) else { return nil }
+        return try? read(selector, scope: scope, default: Float32(0))
+    }
+
+    func canSetVirtualMainVolume(scope: AudioObjectPropertyScope) -> Bool {
+        isSettable(kAudioHardwareServiceDeviceProperty_VirtualMainVolume, scope: scope)
+    }
+
+    @discardableResult
+    func setVirtualMainVolume(_ volume: Float, scope: AudioObjectPropertyScope) -> Bool {
+        let value = Float32(Swift.max(0, Swift.min(1, volume)))
+        return (try? write(kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+                           scope: scope, to: value)) != nil
+    }
+
+    // MARK: Listening
+
+    /// Register one block for several properties of this object. Returns a token
+    /// that removes every registration when cancelled.
+    func listen(to selectors: [AudioObjectPropertySelector],
+                scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+                queue: DispatchQueue,
+                _ block: @escaping AudioObjectPropertyListenerBlock) -> PropertyListenerToken {
+        var addresses: [AudioObjectPropertyAddress] = []
+        for selector in selectors {
+            var address = AudioObjectPropertyAddress(
+                mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
+            if AudioObjectAddPropertyListenerBlock(self, &address, queue, block) == noErr {
+                addresses.append(address)
+            }
+        }
+        return PropertyListenerToken(objectID: self, addresses: addresses, queue: queue, block: block)
+    }
+}
+
+/// Keeps a Core Audio listener block alive and removes it on `cancel()`.
+final class PropertyListenerToken {
+    private let objectID: AudioObjectID
+    private var addresses: [AudioObjectPropertyAddress]
+    private let queue: DispatchQueue
+    private let block: AudioObjectPropertyListenerBlock
+
+    init(objectID: AudioObjectID, addresses: [AudioObjectPropertyAddress],
+         queue: DispatchQueue, block: @escaping AudioObjectPropertyListenerBlock) {
+        self.objectID = objectID
+        self.addresses = addresses
+        self.queue = queue
+        self.block = block
+    }
+
+    func cancel() {
+        for var address in addresses {
+            AudioObjectRemovePropertyListenerBlock(objectID, &address, queue, block)
+        }
+        addresses.removeAll()
+    }
+
+    deinit { cancel() }
 }
 
 enum CoreAudioError: Error, CustomStringConvertible {

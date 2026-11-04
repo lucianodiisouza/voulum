@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Voulum</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -12,8 +14,6 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Voulum</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,13 +27,37 @@
 	<true/>
 	<!-- Shown when macOS prompts for audio-capture permission (needed to tap
 	     another process's audio for volume control). -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Voulum taps app audio so it can adjust each app's volume independently.</string>
+	<string>Voulum picks up app audio so it can set each app's volume.</string>
 	<!-- Shown when macOS prompts to allow controlling a media app (Spotify,
 	     Apple Music, VLC), used to read the current track and drive playback. -->
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Voulum reads the current track from media apps like Spotify, Apple Music, and VLC to show what's playing and let you control it.</string>
+	<string>Voulum asks media apps and browsers what's playing so it can show the title and play or pause them.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voulum picks up app audio so it can set each app's volume.</string>
+	<!-- Sparkle auto-update. SUPublicEDKey verifies every update; its
+	     private half lives in the login keychain (see docs/UPDATES.md). -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/lucianodiisouza/voulum/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>AHjs14q8ghu3og63BEFxU5uOlOYTcb7GDOSI7+R6j9s=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<!-- voulum:// automation links (see URLCommands.swift). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.voulum.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>voulum</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
 </dict>
 </plist>
