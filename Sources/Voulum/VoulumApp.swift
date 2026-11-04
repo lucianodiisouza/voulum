@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        urls.forEach(URLCommands.handle)
+        AudioEngine.shared.whenReady { urls.forEach(URLCommands.handle) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

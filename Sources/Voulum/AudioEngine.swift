@@ -88,6 +88,8 @@ final class AudioEngine: ObservableObject {
     private var backgroundTimer: Timer?
     private var cancellables: Set<AnyCancellable> = []
     private var started = false
+    private var hasLoaded = false
+    private var readyQueue: [() -> Void] = []
 
     /// How long our own pause outranks Core Audio's running-output flag, which
     /// lags a beat behind the app actually going quiet.
@@ -359,8 +361,21 @@ final class AudioEngine: ObservableObject {
         }
     }
 
+    /// Run `work` once the first scan has finished — a `voulum://` link that
+    /// launched the app would otherwise look for apps before any are known.
+    func whenReady(_ work: @escaping () -> Void) {
+        if hasLoaded { work() } else { readyQueue.append(work) }
+    }
+
     private func apply(_ apps: [AudioApp]) {
         if apps != runningApps { runningApps = apps }
+        defer {
+            if !hasLoaded {
+                hasLoaded = true
+                readyQueue.forEach { $0() }
+                readyQueue.removeAll()
+            }
+        }
         let living = Set(apps.map(\.key))
 
         for (key, tap) in taps where !living.contains(key) {
