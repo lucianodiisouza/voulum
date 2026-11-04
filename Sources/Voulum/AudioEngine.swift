@@ -464,9 +464,12 @@ final class AudioEngine: ObservableObject {
         // XPC helpers are launched by launchd, so they have no parent link.
         // macOS still tracks which app they work for: Safari's WebKit GPU and
         // media helpers report Safari as their responsible process.
-        if let responsible = responsiblePID(of: pid), responsible != pid,
+        // The same goes for Chromium and Electron helpers, WKWebView hosts
+        // (Mail, Messages) and menu-bar players, so any app with a bundle id
+        // counts here, not only ones with a Dock icon.
+        if let responsible = responsiblePID(of: pid),
            let app = NSRunningApplication(processIdentifier: responsible),
-           app.activationPolicy == .regular {
+           app.bundleIdentifier != nil, !isHelper(app) {
             return app
         }
         // Otherwise, the app whose bundle contains the helper's executable.
@@ -490,6 +493,12 @@ final class AudioEngine: ObservableObject {
         guard let lookup = responsibleLookup else { return nil }
         let responsible = lookup(pid)
         return responsible > 0 ? responsible : nil
+    }
+
+    /// XPC services and helper apps nested inside another app's bundle.
+    nonisolated private static func isHelper(_ app: NSRunningApplication) -> Bool {
+        guard let path = app.bundleURL?.path else { return false }
+        return path.contains(".xpc") || path.contains(".app/Contents/")
     }
 
     nonisolated private static func parentPID(of pid: pid_t) -> pid_t? {
