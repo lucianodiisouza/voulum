@@ -15,7 +15,7 @@ brew install --cask lucianodiisouza/voulum/voulum
 
 Do **not** publish the cask until releases are signed + notarized (see
 [SIGNING.md](SIGNING.md)). An unsigned cask installs, but Gatekeeper still
-blocks the app on launch and — worse for Voulum — the audio-tap permission is
+blocks the app on launch and, worse for Voulum, the audio-tap permission is
 keyed to the code signature, so ad-hoc-signed builds re-prompt for permission on
 every update. Homebrew's official cask repo also expects notarized apps. Ship
 Homebrew and notarization together.
@@ -28,7 +28,7 @@ Create an **empty public repo** named exactly `homebrew-voulum` under the same
 owner as this repo. The `homebrew-` prefix is what makes `brew tap` find it; the
 tap is then referred to as `lucianodiisouza/voulum` (Homebrew drops the prefix).
 
-No files needed — the release workflow creates `Casks/voulum.rb` on the next
+No files needed: the release workflow creates `Casks/voulum.rb` on the next
 release.
 
 ### 2. Add the push token
@@ -58,12 +58,12 @@ to merge before the tap repo or token exist.
 ## Seeding the current version by hand (optional)
 
 If you want the tap live before the next release, copy `Casks/voulum.rb` into
-`homebrew-voulum/Casks/voulum.rb` as-is — it already carries the latest released
+`homebrew-voulum/Casks/voulum.rb` as-is. It already carries the latest released
 version and checksum.
 
 ## Going official later
 
 Submitting to Homebrew's own `homebrew-cask` (so `brew install --cask voulum`
 works with no tap prefix) requires the project to clear their notability bar and
-be notarized. Keep the personal tap regardless — it's the fallback and the place
+be notarized. Keep the personal tap regardless. It's the fallback and the place
 to test cask changes.

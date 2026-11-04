@@ -7,7 +7,7 @@ notarization. An update has to pass both before it installs.
 
 ## How it fits together
 
-- The app polls **`appcast.xml`** — an RSS feed of released versions — at the
+- The app polls **`appcast.xml`** (an RSS feed of released versions) at the
   URL in `SUFeedURL` (Info.plist), currently the
   `releases/latest/download/appcast.xml` permalink.
 - Each entry carries an `edSignature`. The app checks it against the public key
@@ -18,7 +18,7 @@ notarization. An update has to pass both before it installs.
   [`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml).
 
 Until the secret and public key are in place, the CI step is skipped and
-releases behave exactly as before — nothing breaks while auto-update is off.
+releases behave exactly as before, so nothing breaks while auto-update is off.
 
 ## One-time setup
 
@@ -48,7 +48,7 @@ mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
   ```
 
   Keep this file out of git. The private key is the only thing that can forge an
-  update — treat it like a signing identity.
+  update, so treat it like a signing identity.
 
 ### 2. Add the CI secret
 

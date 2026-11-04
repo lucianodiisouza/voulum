@@ -99,15 +99,15 @@ between.
 
 ### Per-app play/pause
 
-There is no general way to pause an arbitrary macOS app. MediaRemote — the
-framework behind Control Center's now-playing controls — is entitlement-gated to
+There is no general way to pause an arbitrary macOS app. MediaRemote (the
+framework behind Control Center's now-playing controls) is entitlement-gated to
 Apple's own binaries since macOS 15.4, so a third party can neither read
 arbitrary media metadata nor send a targeted transport command. `NowPlayingService`
 therefore scripts each app individually, which means an allow-list, split into two
 tiers:
 
 - **Transport** (every recipe): pause / resume, plus skip where it means
-  something. Native apps use their own verbs — Spotify/Music/TV have real
+  something. Native apps use their own verbs: Spotify/Music/TV have real
   `play`/`pause`, VLC's `play` is a *toggle* so both directions have to test
   `playing` first, QuickTime addresses `front document`.
 - **Metadata** (`Recipe.metadata != nil`): title/artist/album, read on the 1 s
@@ -117,18 +117,18 @@ Browsers are driven by injected JavaScript that pauses `<video>`/`<audio>`
 elements. Two things shape that code:
 
 - Neither Safari's nor Chromium's dictionary exposes an "audible tab" flag, and
-  audio usually plays in a *background* tab — so a command has to sweep every tab
+  audio usually plays in a *background* tab, so a command has to sweep every tab
   of every window. That's why browsers report no metadata: sweeping once a second
   would be absurd. Their play state comes from Core Audio's `isRunningOutput`,
   which is an accurate "is this app making sound" signal anyway.
 - Pause tags each element it stops with `data-voulum-paused`; resume plays back
   exactly those. Without the marker, resume would have to guess which element to
   start, and would happily fire off an unrelated autoplay video.
-- The sweep recurses into nested iframes — plenty of players live in one, and
+- The sweep recurses into nested iframes, since plenty of players live in one, and
   `document.querySelectorAll` only sees the top document. A **cross-origin**
   frame throws on `contentDocument` and is skipped; neither browser's scripting
   API can reach inside one, so media in a third-party embed can't be paused.
-  That's a hard ceiling, not a bug to fix — in practice it's how most LMS video
+  That's a hard ceiling, not a bug to fix. In practice it's how most LMS video
   (Canvas external tools, Kaltura, Panopto) and most third-party embeds arrive.
 - Because of that ceiling the sweep returns a **count** of the elements it
   actually touched, and `send` maps a count of zero onto
@@ -148,7 +148,7 @@ Both failure modes are classified in `NowPlayingService.ScriptError` and surface
 in the row.
 
 `pauseOthersOnPlay` (menu toggle, on by default) makes a resume pause every other
-scriptable app first, deduped by bundle id — one browser routinely shows up as
+scriptable app first, deduped by bundle id, because one browser routinely shows up as
 several Core Audio helper processes.
 
 Two lag hazards, both handled by `pausedAt`:
