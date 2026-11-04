@@ -48,6 +48,9 @@ jobs:
       HAS_CERT: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
       # True only when a token for the Homebrew tap repo is present.
       HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+      # True when an App Store Connect API key is present for notarization
+      # (otherwise the Apple ID + app-specific password secrets are used).
+      HAS_NOTARY_KEY: ${{ secrets.NOTARY_API_KEY_P8_BASE64 != '' }}
       SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -62,25 +65,6 @@ jobs:
 
       - name: Generate Xcode project
         run: xcodegen generate
-
-      - name: Build (Release)
-        run: |
-          # Sparkle compares updates by CFBundleVersion. project.yml pins that to
-          # "1", so without this override every release would look identical to
-          # Sparkle and no update would ever be offered. Feed it the release
-          # version (tag without the leading "v") so 0.3.0 > 0.2.1 as expected.
-          VERSION="${TAG#v}"
-          xcodebuild \
-            -project Voulum.xcodeproj \
-            -scheme Voulum \
-            -configuration Release \
-            -destination 'generic/platform=macOS' \
-            -derivedDataPath build \
-            CURRENT_PROJECT_VERSION="$VERSION" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
 
       # --- Signing: Developer ID (if secrets present) ------------------------
 
@@ -104,53 +88,38 @@ jobs:
             $(security list-keychains -d user | tr -d '"')
           rm -f "$RUNNER_TEMP/cert.p12"
 
-      - name: Sign app (Developer ID)
+      - name: Write notary API key
+        if: ${{ env.HAS_CERT == 'true' && env.HAS_NOTARY_KEY == 'true' }}
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_API_KEY_P8_BASE64 }}
+        run: |
+          echo "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary_key.p8"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/notary_key.p8" >> "$GITHUB_ENV"
+
+      # --- Build, sign, package, notarize ------------------------------------
+      # scripts/release.sh does all of it, the same way it runs locally. With
+      # no certificate it falls back to an ad-hoc signature.
+
+      - name: Build signed & notarized .dmg
         if: ${{ env.HAS_CERT == 'true' }}
         env:
           SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          codesign --force --deep --options runtime --timestamp \
-            --entitlements Sources/Voulum/Voulum.entitlements \
-            --sign "$SIGNING_IDENTITY" \
-            "build/Build/Products/Release/Voulum.app"
-          codesign --verify --strict --verbose=2 \
-            "build/Build/Products/Release/Voulum.app"
-
-      - name: Sign app (ad-hoc fallback)
-        if: ${{ env.HAS_CERT != 'true' }}
-        run: |
-          codesign --force --deep --sign - \
-            --entitlements Sources/Voulum/Voulum.entitlements \
-            "build/Build/Products/Release/Voulum.app"
-
-      # --- Package -----------------------------------------------------------
-
-      - name: Package .dmg
-        run: |
-          APP="build/Build/Products/Release/Voulum.app"
-          STAGE="$(mktemp -d)/dmg"
-          mkdir -p "$STAGE"
-          cp -R "$APP" "$STAGE/"
-          ln -s /Applications "$STAGE/Applications"
-          DMG="Voulum-${TAG}-macos.dmg"
-          hdiutil create -volname "Voulum" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
-          echo "DMG=$DMG" >> "$GITHUB_ENV"
-
-      # --- Notarize (if secrets present) -------------------------------------
-
-      - name: Notarize & staple
-        if: ${{ env.HAS_CERT == 'true' }}
-        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_API_ISSUER_ID }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: scripts/release.sh "$TAG"
+
+      - name: Build ad-hoc signed .dmg
+        if: ${{ env.HAS_CERT != 'true' }}
+        run: scripts/release.sh --adhoc "$TAG"
+
+      - name: Clean up signing material
+        if: ${{ always() }}
         run: |
-          xcrun notarytool submit "$DMG" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --wait
-          xcrun stapler staple "$DMG"
+          rm -f "$RUNNER_TEMP/notary_key.p8"
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
       # --- Upload ------------------------------------------------------------
 
