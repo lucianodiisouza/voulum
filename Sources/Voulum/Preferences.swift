@@ -66,6 +66,9 @@ enum MenuBarIconStyle: String, CaseIterable, Codable, Identifiable {
 /// How far one keyboard / scroll / hotkey nudge moves a volume.
 /// The popup's backdrop.
 enum PopupStyle: String, CaseIterable, Codable, Identifiable {
+    /// A dark mixing desk: LED meters over the faders, square mute keys.
+    /// Always dark, whatever the Mac is set to. The default.
+    case desk
     /// The system's frosted popover material.
     case standard
     /// macOS 26 Liquid Glass: clearer, refracting what's behind it.
@@ -76,6 +79,7 @@ enum PopupStyle: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .standard: return String(localized: "Frosted")
         case .glass: return String(localized: "Liquid Glass")
+        case .desk: return String(localized: "Mixing Desk")
         }
     }
     static var glassAvailable: Bool {
@@ -142,7 +146,7 @@ final class Preferences: ObservableObject {
         ignored = load(Keys.ignored, [])
         userPresets = load(Keys.userPresets, [])
         iconStyle = MenuBarIconStyle(rawValue: defaults.string(forKey: Keys.iconStyle) ?? "") ?? .adaptive
-        popupStyle = PopupStyle(rawValue: defaults.string(forKey: Keys.popupStyle) ?? "") ?? .standard
+        popupStyle = PopupStyle(rawValue: defaults.string(forKey: Keys.popupStyle) ?? "") ?? .desk
         volumeStep = VolumeStep(rawValue: defaults.integer(forKey: Keys.volumeStep)) ?? .normal
         // Legacy keys from 0.4.x keep their meaning.
         pauseOthersOnPlay = defaults.object(forKey: Keys.pauseOthers) as? Bool ?? true

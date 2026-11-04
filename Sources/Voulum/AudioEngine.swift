@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Combine
 import CoreAudio
 import Foundation
@@ -60,6 +61,8 @@ final class AudioEngine: ObservableObject {
     private let prefs = Preferences.shared
     private let devices = DeviceController.shared
     private var taps: [String: AppTap] = [:]
+    private let master = MasterMeter()
+    private let mic = MicMeter()
     /// The concrete device UIDs each tap was last routed to.
     private var appliedRoutes: [String: [String]] = [:]
 
@@ -186,15 +189,56 @@ final class AudioEngine: ObservableObject {
             Task { @MainActor in
                 self?.reload()
                 self?.devices.refreshLevels()
+                self?.syncDeskMeters()
             }
         }
         reload()
         devices.refreshLevels()
+        syncDeskMeters()
         meters.start { [weak self] in
             guard let self else { return [:] }
-            return self.taps.mapValues { $0.isActive ? $0.takeLevels() : (0, 0) }
+            var levels = self.taps.mapValues { $0.isActive ? $0.takeLevels() : TapLevels() }
+            if self.masterRunning { levels[LevelMeters.masterKey] = self.master.takeLevels() }
+            if self.micRunning { levels[LevelMeters.micKey] = self.mic.takeLevels() }
+            return levels
         }
     }
+
+    private var masterRunning = false
+    private var micRunning = false
+
+    /// The desk style's meters run while the popup is open. The master needs
+    /// audio access and the mic needs microphone access; the master never
+    /// asks (opening the popup shouldn't), the mic asks once, the first time.
+    private func syncDeskMeters() {
+        let desk = pollTimer != nil && prefs.popupStyle.effective == .desk
+        let master = self.master, mic = self.mic
+
+        masterRunning = desk && audioPermissionGranted
+        if masterRunning {
+            let excluded = taps.values.filter(\.isActive).flatMap(\.processIDs)
+            let output = devices.defaultOutputID
+            halQueue.async { master.run(excluding: excluded, output: output) }
+        } else {
+            halQueue.async { master.stop() }
+        }
+
+        if desk && MicMeter.accessUndecided && !askedForMic {
+            askedForMic = true
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
+                Task { @MainActor in self?.syncDeskMeters() }
+            }
+        }
+        micRunning = desk && MicMeter.accessGranted
+        if micRunning {
+            let input = devices.defaultInputID
+            halQueue.async { mic.run(device: input) }
+        } else {
+            halQueue.async { mic.stop() }
+        }
+    }
+
+    private var askedForMic = false
 
     /// Whether the popup is open.
     var isLive: Bool { pollTimer != nil }
@@ -203,6 +247,7 @@ final class AudioEngine: ObservableObject {
         pollTimer?.invalidate()
         pollTimer = nil
         meters.stop()
+        syncDeskMeters()
     }
 
     func shutdown() {
@@ -554,6 +599,20 @@ private func prettyBundleName(_ bundleID: String) -> String {
 
 // MARK: - Meters
 
+/// What one tap measured since the meters last asked.
+struct TapLevels {
+    var rms: Float = 0
+    var peak: Float = 0
+    var left: Float = 0
+    var right: Float = 0
+}
+
+/// Left and right meter readings, 0...1 on the same scale as `levels`.
+struct StereoLevel: Equatable {
+    var left: Float = 0
+    var right: Float = 0
+}
+
 /// Per-app output levels for the popup, sampled ~24 times a second while it's
 /// open and smoothed with a fast attack / slow release, like a real meter.
 /// Separate from `AudioEngine` so only the meters redraw at that rate.
@@ -562,26 +621,40 @@ final class LevelMeters: ObservableObject {
     @Published private(set) var levels: [String: Float] = [:]
     /// Apps whose signal is touching full scale — the ring turns orange.
     @Published private(set) var hot: Set<String> = []
+    /// Per-channel readings, for the desk style's double meters.
+    @Published private(set) var stereo: [String: StereoLevel] = [:]
+    /// The key the master meter's readings use in `levels` and `stereo`.
+    static let masterKey = "voulum.master"
+    /// The same for the microphone.
+    static let micKey = "voulum.mic"
     private var timer: Timer?
 
-    func start(sample: @escaping () -> [String: (rms: Float, peak: Float)]) {
+    /// Loudness (RMS) on a −54…−6 dBFS scale, so typical music sits mid-scale
+    /// and moves with the beat instead of pinning; fast attack, slow release.
+    private static func meter(_ rms: Float, from previous: Float) -> Float {
+        let db = 20 * log10(max(rms, 1e-6))
+        let target = max(0, min(1, (db + 54) / 48))
+        return target > previous ? target : max(target, previous - 0.05)
+    }
+
+    func start(sample: @escaping () -> [String: TapLevels]) {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 var next: [String: Float] = [:]
                 var nextHot: Set<String> = []
+                var nextStereo: [String: StereoLevel] = [:]
                 for (key, value) in sample() {
-                    // Loudness (RMS) on a −54…−6 dBFS scale, so typical music
-                    // sits mid-ring and moves with the beat instead of pinning.
-                    let db = 20 * log10(max(value.rms, 1e-6))
-                    let target = max(0, min(1, (db + 54) / 48))
-                    let previous = self.levels[key] ?? 0
-                    next[key] = target > previous ? target : max(target, previous - 0.05)
+                    next[key] = Self.meter(value.rms, from: self.levels[key] ?? 0)
+                    let previous = self.stereo[key] ?? StereoLevel()
+                    nextStereo[key] = StereoLevel(left: Self.meter(value.left, from: previous.left),
+                                                  right: Self.meter(value.right, from: previous.right))
                     if value.peak > 0.98 { nextHot.insert(key) }
                 }
                 if next != self.levels { self.levels = next }
                 if nextHot != self.hot { self.hot = nextHot }
+                if nextStereo != self.stereo { self.stereo = nextStereo }
             }
         }
     }
@@ -591,5 +664,6 @@ final class LevelMeters: ObservableObject {
         timer = nil
         levels = [:]
         hot = []
+        stereo = [:]
     }
 }

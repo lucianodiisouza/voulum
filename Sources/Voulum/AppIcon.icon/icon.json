@@ -1,45 +1,115 @@
 {
   "fill" : {
     "linear-gradient" : [
-      "display-p3:0.36000,0.24000,0.86000,1.00000",
-      "display-p3:0.08000,0.09000,0.26000,1.00000"
+      "display-p3:0.17000,0.15500,0.13500,1.00000",
+      "display-p3:0.05500,0.05000,0.04500,1.00000"
     ]
   },
   "groups" : [
     {
       "layers" : [
         {
-          "glass" : true,
-          "image-name" : "faders.svg",
-          "name" : "faders",
+          "glass" : false,
+          "image-name" : "base.svg",
+          "name" : "base",
           "position" : {
             "scale" : 1,
-            "translation-in-points" : [ 0, 0 ]
+            "translation-in-points" : [
+              0,
+              0
+            ]
           }
         }
       ],
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.3
+      },
       "specular" : true,
-      "translucency" : { "enabled" : true, "value" : 0.3 }
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
     },
     {
       "layers" : [
         {
-          "glass" : true,
-          "image-name" : "ring.svg",
-          "name" : "ring",
+          "glass" : false,
+          "image-name" : "needle.svg",
+          "name" : "needle",
           "position" : {
             "scale" : 1,
-            "translation-in-points" : [ 0, 0 ]
+            "translation-in-points" : [
+              0,
+              0
+            ]
           }
         }
       ],
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.35
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "scale.svg",
+          "name" : "scale",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "face.svg",
+          "name" : "face",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.4
+      },
       "specular" : true,
-      "translucency" : { "enabled" : true, "value" : 0.4 }
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
     }
   ],
   "supported-platforms" : {
-    "squares" : [ "macOS" ]
+    "squares" : [
+      "macOS"
+    ]
   }
 }

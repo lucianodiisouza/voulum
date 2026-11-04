@@ -285,6 +285,17 @@ private struct GeneralSettings: View {
     @EnvironmentObject private var updater: Updater
     @State private var launchAtLogin = LoginItem.isEnabled
 
+    private var styleFooter: String {
+        switch prefs.popupStyle.effective {
+        case .desk:
+            return String(localized: "Mixing Desk puts a live LED meter on every fader. It stays dark, whatever your Mac is set to.")
+        case .glass, .standard:
+            return PopupStyle.glassAvailable
+                ? String(localized: "Liquid Glass lets your desktop show through the popup. Light and dark follow your Mac.")
+                : String(localized: "Liquid Glass needs macOS 26 or later. Light and dark follow your Mac.")
+        }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -294,17 +305,17 @@ private struct GeneralSettings: View {
             }
             Section {
                 Picker("Popup style", selection: $prefs.popupStyle) {
-                    ForEach(PopupStyle.allCases) { Text($0.title).tag($0) }
+                    ForEach(PopupStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                            .selectionDisabled(style == .glass && !PopupStyle.glassAvailable)
+                    }
                 }
                 .pickerStyle(.segmented)
-                .disabled(!PopupStyle.glassAvailable)
                 .settingsAnchor("theme")
             } header: {
                 Text("Appearance")
             } footer: {
-                Text(PopupStyle.glassAvailable
-                     ? String(localized: "Liquid Glass lets your desktop show through the popup. Light and dark follow your Mac.")
-                     : String(localized: "Liquid Glass needs macOS 26 or later. Light and dark follow your Mac."))
+                Text(styleFooter)
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Menu bar icon") {
@@ -680,7 +691,11 @@ private struct AboutSettings: View {
             Text("Per-app volume, routing and EQ for macOS.\nFree and open source under the MIT license.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-            Link("github.com/lucianodiisouza/voulum", destination: URL(string: "https://github.com/lucianodiisouza/voulum")!)
+            // The site, in Portuguese when Voulum is showing Portuguese.
+            Link(destination: URL(string: Bundle.main.preferredLocalizations.first?.hasPrefix("pt") == true
+                                  ? "https://audio.oprimo.dev/pt-br/" : "https://audio.oprimo.dev/")!) {
+                Text(verbatim: "audio.oprimo.dev")
+            }
             Button("Watch the Welcome Tour") { OnboardingWindowController.shared.show() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

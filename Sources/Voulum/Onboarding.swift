@@ -564,7 +564,8 @@ private struct LookStep: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer(minLength: 30)
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
+                card(.desk)
                 card(.standard)
                 card(.glass)
             }
@@ -588,7 +589,7 @@ private struct LookStep: View {
         } label: {
             VStack(spacing: 10) {
                 PopupThumbnail(style: style)
-                    .frame(width: 180, height: 120)
+                    .frame(width: 168, height: 112)
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(.white.opacity(selected ? 0.95 : 0.15), lineWidth: selected ? 2.5 : 1))
                     .shadow(color: .white.opacity(selected ? 0.25 : 0), radius: 16)
@@ -618,24 +619,57 @@ private struct PopupThumbnail: View {
             Circle().fill(.cyan.opacity(0.8)).frame(width: 70).offset(x: -50, y: 26)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([0.8, 0.5, 0.65], id: \.self) { fill in
-                    HStack(spacing: 6) {
-                        Circle().fill(.green.opacity(0.9)).frame(width: 12, height: 12)
-                        Capsule().fill(Color.white.opacity(0.25)).frame(height: 5)
-                            .overlay(alignment: .leading) {
-                                GeometryReader { g in Capsule().fill(Color.accentColor).frame(width: g.size.width * fill) }
-                            }
-                    }
+                    if style == .desk { deskRow(fill) } else { row(fill) }
                 }
             }
             .padding(12)
             .frame(width: 130, height: 84)
             .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(style == .glass ? AnyShapeStyle(.ultraThinMaterial.opacity(0.5)) : AnyShapeStyle(.regularMaterial))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(.white.opacity(style == .glass ? 0.6 : 0.15), lineWidth: style == .glass ? 1.2 : 0.5))
+                if style == .desk {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(red: 0.086, green: 0.082, blue: 0.075))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(.white.opacity(0.12), lineWidth: 0.5))
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(style == .glass ? AnyShapeStyle(.ultraThinMaterial.opacity(0.5)) : AnyShapeStyle(.regularMaterial))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(.white.opacity(style == .glass ? 0.6 : 0.15), lineWidth: style == .glass ? 1.2 : 0.5))
+                }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func row(_ fill: Double) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(.green.opacity(0.9)).frame(width: 12, height: 12)
+            Capsule().fill(Color.white.opacity(0.25)).frame(height: 5)
+                .overlay(alignment: .leading) {
+                    GeometryReader { g in Capsule().fill(Color.accentColor).frame(width: g.size.width * fill) }
+                }
+        }
+    }
+
+    /// A mute key, a few lit LEDs and a fader cap.
+    private func deskRow(_ fill: Double) -> some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2).fill(Color(white: 0.24)).frame(width: 12, height: 12)
+            VStack(spacing: 3) {
+                LEDMeter(left: Float(fill) * 0.9, right: Float(fill) * 0.8, segments: 12)
+                    .scaleEffect(y: 0.6)
+                    .frame(height: 10)
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Rectangle().fill(Color.black).frame(height: 2)
+                        RoundedRectangle(cornerRadius: 1.5).fill(Color(white: 0.34))
+                            .frame(width: 6, height: 9)
+                            .offset(x: g.size.width * fill * 0.75 - 3)
+                    }
+                    .frame(maxHeight: .infinity)
+                }
+                .frame(height: 9)
+            }
+        }
     }
 }

@@ -10,6 +10,7 @@ struct AppRowView: View {
     @EnvironmentObject private var devices: DeviceController
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var meters: LevelMeters
+    @Environment(\.deskStyle) private var desk
 
     @State private var hovering = false
     @State private var showingRoutes = false
@@ -49,21 +50,37 @@ struct AppRowView: View {
                 if engine.canControlTransport(app) { transport }
 
                 Text(settings.muted ? String(localized: "Muted") : settings.level.percentLabel)
-                    .font(.system(.caption, design: .rounded).weight(.semibold).monospacedDigit())
-                    .foregroundStyle(settings.level > 1 && !settings.muted ? Color.orange : .secondary)
+                    .font(.system(.caption, design: desk ? .monospaced : .rounded).weight(.semibold).monospacedDigit())
+                    .foregroundStyle(settings.level > 1 && !settings.muted ? (desk ? Color.deskAmber : .orange) : .secondary)
                     .frame(width: 42, alignment: .trailing)
                     .onTapGesture(count: 2) { engine.setLevel(1, for: app) }
                     .help("Double-click to reset to 100%")
             }
 
             HStack(spacing: 4) {
-                IconButton(systemName: muteSymbol, help: settings.muted ? "Unmute" : "Mute",
-                           active: settings.muted, tint: .red) {
-                    engine.toggleMute(app)
-                }
-                VolumeSlider(value: level, maxValue: AppAudioSettings.maxLevel, muted: settings.muted,
-                             step: prefs.volumeStep.fraction)
+                if desk {
+                    DeskKey(label: "M", help: settings.muted ? String(localized: "Unmute") : String(localized: "Mute"),
+                            active: settings.muted) {
+                        engine.toggleMute(app)
+                    }
+                    .padding(.trailing, 2)
+                    // The meter sits right on top of the fader it belongs to.
+                    VStack(spacing: 5) {
+                        let stereo = settings.muted ? StereoLevel() : meters.stereo[app.key] ?? StereoLevel()
+                        LEDMeter(left: stereo.left, right: stereo.right, clipping: meters.hot.contains(app.key))
+                        VolumeSlider(value: level, maxValue: AppAudioSettings.maxLevel, muted: settings.muted,
+                                     step: prefs.volumeStep.fraction)
+                    }
                     .padding(.horizontal, 4)
+                } else {
+                    IconButton(systemName: muteSymbol, help: settings.muted ? "Unmute" : "Mute",
+                               active: settings.muted, tint: .red) {
+                        engine.toggleMute(app)
+                    }
+                    VolumeSlider(value: level, maxValue: AppAudioSettings.maxLevel, muted: settings.muted,
+                                 step: prefs.volumeStep.fraction)
+                        .padding(.horizontal, 4)
+                }
                 IconButton(systemName: routeSymbol, help: "Choose where \(app.name) plays",
                            active: settings.route != .system) {
                     showingRoutes.toggle()
@@ -75,7 +92,9 @@ struct AppRowView: View {
                 }
                 IconButton(systemName: "slider.vertical.3", help: "Equalizer",
                            active: settings.eq.enabled && !settings.eq.isFlat) {
-                    withAnimation(.snappy(duration: 0.22)) { expandedEQ = eqOpen ? nil : app.key }
+                    // No animated layout: the popup window resizes in one step,
+                    // so a sliding panel would fight it. The panel fades instead.
+                    expandedEQ = eqOpen ? nil : app.key
                 }
                 moreMenu
             }
@@ -86,15 +105,20 @@ struct AppRowView: View {
 
             if eqOpen {
                 EQPanel(app: app)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top))
+                            .animation(.easeOut(duration: 0.18)),
+                        removal: .identity))
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
         .background(RowBackground(highlighted: focused || hovering || eqOpen))
         .overlay(
+            // Inside the row's edge: a centred stroke loses its outer half
+            // where the scroll view clips the first row.
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.accentColor.opacity(focused ? 0.55 : 0), lineWidth: 1.5)
+                .strokeBorder((desk ? Color.deskAmber : Color.accentColor).opacity(focused ? 0.55 : 0), lineWidth: 1.5)
         )
         .onHover { hovering = $0 }
         .contextMenu { moreMenuItems }
