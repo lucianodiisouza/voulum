@@ -69,6 +69,12 @@ final class AudioEngine: ObservableObject {
     private var reloadInFlight = false
     private var reloadAgain = false
     private var nowPlayingInFlight = false
+    /// Browser tab lookups: when each app was last swept, and when a browser
+    /// last refused JavaScript (so we use tab titles alone for a while).
+    var lastTabFetch: [String: Date] = [:]
+    var javaScriptBlockedAt: [String: Date] = [:]
+    static let tabRefreshInterval: TimeInterval = 4
+    static let javaScriptRetryInterval: TimeInterval = 120
 
     // Narrow setters so the transport extension can stay in its own file while
     // the published state stays read-only to everyone else.
@@ -175,8 +181,6 @@ final class AudioEngine: ObservableObject {
 
     /// Popup opened: refresh now, then poll for play-state, meters and tracks.
     func beginLiveUpdates() {
-        reload()
-        devices.refreshLevels()
         pollTimer?.invalidate()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -184,11 +188,16 @@ final class AudioEngine: ObservableObject {
                 self?.devices.refreshLevels()
             }
         }
+        reload()
+        devices.refreshLevels()
         meters.start { [weak self] in
             guard let self else { return [:] }
             return self.taps.mapValues { $0.isActive ? $0.takeLevels() : (0, 0) }
         }
     }
+
+    /// Whether the popup is open.
+    var isLive: Bool { pollTimer != nil }
 
     func endLiveUpdates() {
         pollTimer?.invalidate()

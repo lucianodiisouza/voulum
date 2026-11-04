@@ -15,7 +15,8 @@ extension AudioEngine {
     /// Best answer to "is this app making sound": the app's own state where we
     /// can read it, else Core Audio's running-output flag.
     func isPlayingNow(_ app: AudioApp) -> Bool {
-        if let track = nowPlaying[app.key] { return track.isPlaying }
+        // Browser titles come from their tabs, which say nothing about play state.
+        if let track = nowPlaying[app.key], NowPlayingService.supportsMetadata(app.bundleID) { return track.isPlaying }
         return app.isPlaying && pausedAt[app.key] == nil
     }
 
@@ -107,24 +108,54 @@ extension AudioEngine {
     }
 
     /// Read track metadata for listed apps that can report it, off-main.
+    /// Browsers are looked up from their tabs, only while the popup is open and
+    /// at most every `tabRefreshInterval`, since that can mean a sweep of every tab.
     func refreshNowPlaying() {
         let targets: [(key: String, bundleID: String)] = visibleApps.compactMap { app in
             guard app.isRunning, let id = app.bundleID, NowPlayingService.supportsMetadata(id) else { return nil }
             return (app.key, id)
         }
+        // A browser keeps its title while playing, or paused by us.
+        let browsers = visibleApps.filter {
+            $0.isRunning && NowPlayingService.supportsTabs($0.bundleID)
+                && ($0.isPlaying || pausedAt[$0.key] != nil)
+        }
+        let now = Date()
+        let tabTargets: [(key: String, bundleID: String, javaScript: Bool)] = isLive ? browsers.compactMap { app in
+            guard let id = app.bundleID, app.isPlaying, pausedAt[app.key] == nil,
+                  now.timeIntervalSince(lastTabFetch[app.key] ?? .distantPast) >= Self.tabRefreshInterval else { return nil }
+            lastTabFetch[app.key] = now
+            let javaScript = now.timeIntervalSince(javaScriptBlockedAt[id] ?? .distantPast) > Self.javaScriptRetryInterval
+            return (app.key, id, javaScript)
+        } : []
+
         let keys = Set(targets.map(\.key))
-        for key in nowPlaying.keys where !keys.contains(key) { setNowPlaying(nil, key: key) }
-        guard !targets.isEmpty, beginNowPlayingFetch() else { return }
+        let keep = keys.union(browsers.map(\.key))
+        for key in nowPlaying.keys where !keep.contains(key) {
+            setNowPlaying(nil, key: key)
+            lastTabFetch[key] = nil
+        }
+        guard !targets.isEmpty || !tabTargets.isEmpty, beginNowPlayingFetch() else { return }
 
         transportQueue.async { [weak self] in
             var fetched: [String: NowPlaying] = [:]
             for target in targets {
                 if let info = NowPlayingService.fetch(bundleID: target.bundleID) { fetched[target.key] = info }
             }
+            var tabs: [String: NowPlaying] = [:]
+            var blocked: Set<String> = []
+            for target in tabTargets {
+                let (info, javaScriptBlocked) = NowPlayingService.fetchTab(bundleID: target.bundleID,
+                                                                           javaScriptAllowed: target.javaScript)
+                if let info { tabs[target.key] = info }
+                if javaScriptBlocked { blocked.insert(target.bundleID) }
+            }
             Task { @MainActor in
                 guard let self else { return }
                 self.endNowPlayingFetch()
                 for key in keys { self.setNowPlaying(fetched[key], key: key) }
+                for target in tabTargets { self.setNowPlaying(tabs[target.key], key: target.key) }
+                for id in blocked { self.javaScriptBlockedAt[id] = Date() }
             }
         }
     }

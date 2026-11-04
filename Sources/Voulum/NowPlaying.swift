@@ -40,9 +40,9 @@ struct NowPlaying: Equatable {
 /// Two tiers of support, deliberately separate:
 ///  - **Transport** (every recipe): pause / resume, and skip where meaningful.
 ///  - **Metadata** (`Recipe.metadata != nil`): title/artist/album, read on the
-///    1 s poll. Browsers opt out — finding the audible tab means running
-///    JavaScript in *every* tab, far too expensive to do once a second. Their
-///    play state comes from Core Audio's `isRunningOutput` instead, which is an
+///    1 s poll. Browsers use `fetchTab` instead, on a slower cadence: they have
+///    no "current track", so we find the tab that's playing (see there). Their
+///    play state comes from Core Audio's `isRunningOutput`, which is an
 ///    accurate "is this app making sound" signal anyway.
 enum NowPlayingService {
 
@@ -103,6 +103,16 @@ enum NowPlayingService {
         /// touched. Browsers do, and a count of zero is the difference between
         /// "paused it" and "silently reached nothing".
         var countsAffected: Bool = false
+        /// Browsers: how to list tabs and run JavaScript in one, for `fetchTab`.
+        var tabs: TabDialect? = nil
+    }
+
+    /// The two browser scripting dictionaries.
+    enum TabDialect {
+        /// Chromium family: `title of t`, `active tab index`, `execute t javascript`.
+        case chromium(String)
+        /// Safari: `name of t`, `current tab`, `do JavaScript … in t`.
+        case safari(String)
     }
 
     /// Bundle ids we know how to script, mapped to their scripting recipe.
@@ -122,6 +132,9 @@ enum NowPlayingService {
         "com.microsoft.edgemac": chromiumStyle("Microsoft Edge"),
         "com.vivaldi.Vivaldi": chromiumStyle("Vivaldi"),
         "org.chromium.Chromium": chromiumStyle("Chromium"),
+        "company.thebrowser.Browser": chromiumStyle("Arc"),
+        "com.operasoftware.Opera": chromiumStyle("Opera"),
+        "dev.oprimo.flecha.browser": chromiumStyle("Flecha"),
     ]
 
     /// Whether we can pause/resume this app at all.
@@ -134,6 +147,12 @@ enum NowPlayingService {
     static func supportsMetadata(_ bundleID: String?) -> Bool {
         guard let bundleID else { return false }
         return recipes[bundleID]?.metadata != nil
+    }
+
+    /// Whether we can name what this app is playing from its tabs (browsers).
+    static func supportsTabs(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return recipes[bundleID]?.tabs != nil
     }
 
     /// Whether next/previous mean anything for this app.
@@ -362,7 +381,8 @@ enum NowPlayingService {
                previous: nil,
                // Path lifted from Chromium's own error string for this case.
                javaScriptHint: "Turn on “Allow JavaScript from Apple Events” in \(appName): View ▸ Developer.",
-               countsAffected: true)
+               countsAffected: true,
+               tabs: .chromium(appName))
     }
 
     /// Safari: `do JavaScript … in <tab>`.
@@ -375,7 +395,8 @@ enum NowPlayingService {
                // The Develop menu is itself hidden until switched on, so that
                // step has to be part of the instruction.
                javaScriptHint: "Turn on “Allow JavaScript from Apple Events” in \(appName): Settings ▸ Advanced ▸ Show features for web developers, then the Develop menu.",
-               countsAffected: true)
+               countsAffected: true,
+               tabs: .safari(appName))
     }
 
     /// Run an injection across every tab of every window.
@@ -405,6 +426,193 @@ enum NowPlayingService {
             return touched as text
         end tell
         """
+    }
+
+    // MARK: Browser tabs
+
+    /// What a browser is playing, named after the tab it's coming from.
+    /// Blocking (one or two Apple events) — call off the main thread, and not
+    /// every second.
+    ///
+    /// Two ways in, best first:
+    ///  1. JavaScript, where the user allowed it: the first tab with a playing
+    ///     `<video>`/`<audio>` reports its Media Session metadata — the same
+    ///     title/artist the page hands to Control Center — or its page title.
+    ///  2. Tab titles, which need no JavaScript: the most likely media tab (a
+    ///     known music/video site, preferring the one in front) gives its
+    ///     title, with the site's own " - YouTube" style suffix trimmed off.
+    ///
+    /// `javaScriptAllowed` is false once (1) has failed for that reason, so we
+    /// don't pay for an error round-trip on every refresh.
+    static func fetchTab(bundleID: String, javaScriptAllowed: Bool) -> (NowPlaying?, javaScriptBlocked: Bool) {
+        guard let dialect = recipes[bundleID]?.tabs else { return (nil, false) }
+        var blocked = false
+        if javaScriptAllowed {
+            switch run(tabScript(dialect, javaScript: true), context: "tab media") {
+            case .success(let raw?):
+                if raw.hasPrefix(errorSentinel) {
+                    blocked = raw.lowercased().contains("javascript")
+                } else if let track = parseMediaSession(raw) {
+                    return (track, false)
+                }
+            case .success(nil):
+                break
+            case .failure(let error):
+                if case .javaScriptDisabled = error { blocked = true }
+            }
+        }
+        guard case .success(let raw?) = run(tabScript(dialect, javaScript: false), context: "tab titles") else {
+            return (nil, blocked)
+        }
+        return (bestTab(in: raw), blocked)
+    }
+
+    /// Lines of `active<TAB>URL<TAB>title` per tab, or — with `javaScript` —
+    /// `title<LF>artist<LF>album<LF>host` from the first tab that's playing.
+    private static func tabScript(_ dialect: TabDialect, javaScript: Bool) -> String {
+        // `tab` is a class in both dictionaries, so the tab character is spelled out.
+        let field = "(character id 9)"
+        switch dialect {
+        case .chromium(let app):
+            if javaScript {
+                return mediaSweep(app, inject: "execute t javascript \"\(mediaJS)\"")
+            }
+            return """
+            tell application "\(app)"
+                set out to ""
+                repeat with w in windows
+                    set a to active tab index of w
+                    set i to 0
+                    repeat with t in tabs of w
+                        set i to i + 1
+                        set out to out & ((i = a) as text) & \(field) & (URL of t) & \(field) & (title of t) & linefeed
+                    end repeat
+                end repeat
+                return out
+            end tell
+            """
+        case .safari(let app):
+            if javaScript {
+                return mediaSweep(app, inject: "do JavaScript \"\(mediaJS)\" in t")
+            }
+            return """
+            tell application "\(app)"
+                set out to ""
+                repeat with w in windows
+                    set a to index of current tab of w
+                    repeat with t in tabs of w
+                        set out to out & (((index of t) = a) as text) & \(field) & (URL of t) & \(field) & (name of t) & linefeed
+                    end repeat
+                end repeat
+                return out
+            end tell
+            """
+        }
+    }
+
+    /// Run `mediaJS` tab by tab until one reports something playing.
+    private static func mediaSweep(_ app: String, inject: String) -> String {
+        """
+        tell application "\(app)"
+            set errMsg to ""
+            repeat with w in windows
+                repeat with t in tabs of w
+                    try
+                        set r to (\(inject))
+                        if r is not missing value and r is not "" then return r
+                    on error m
+                        if errMsg is "" then set errMsg to m
+                    end try
+                end repeat
+            end repeat
+            if errMsg is not "" then return "\(errorSentinel)" & errMsg
+            return ""
+        end tell
+        """
+    }
+
+    /// Empty unless a media element is playing; then the page's Media Session
+    /// metadata (falling back to its title) and host, newline-separated. Same
+    /// one-line, single-quote constraints as `pauseJS`.
+    private static let mediaJS = "(function(){var p=false;var e=document.querySelectorAll('video,audio');for(var i=0;i<e.length;i++){if(!e[i].paused&&!e[i].ended){p=true;break;}}if(!p)return '';var m=navigator.mediaSession&&navigator.mediaSession.metadata;var n=String.fromCharCode(10);return ((m&&m.title)||document.title)+n+((m&&m.artist)||'')+n+((m&&m.album)||'')+n+location.hostname;})()"
+
+    private static func parseMediaSession(_ raw: String) -> NowPlaying? {
+        let parts = raw.components(separatedBy: "\n")
+        guard parts.count >= 4 else { return nil }
+        let title = cleanTitle(parts[0])
+        guard !title.isEmpty else { return nil }
+        let artist = parts[1].isEmpty ? siteName(host: parts[3]) : parts[1]
+        return NowPlaying(title: title, artist: artist, album: parts[2].isEmpty ? nil : parts[2], isPlaying: true)
+    }
+
+    /// Sites that are almost always the source when a browser makes sound,
+    /// best first, with the name shown under the title.
+    private static let mediaSites: [(host: String, name: String)] = [
+        ("music.youtube.com", "YouTube Music"),
+        ("open.spotify.com", "Spotify"),
+        ("music.apple.com", "Apple Music"),
+        ("soundcloud.com", "SoundCloud"),
+        ("deezer.com", "Deezer"),
+        ("tidal.com", "Tidal"),
+        ("bandcamp.com", "Bandcamp"),
+        ("mixcloud.com", "Mixcloud"),
+        ("pandora.com", "Pandora"),
+        ("youtube.com", "YouTube"),
+        ("twitch.tv", "Twitch"),
+        ("netflix.com", "Netflix"),
+        ("primevideo.com", "Prime Video"),
+        ("disneyplus.com", "Disney+"),
+        ("max.com", "Max"),
+        ("vimeo.com", "Vimeo"),
+        ("podcasts.apple.com", "Apple Podcasts"),
+    ]
+
+    private static func site(for urlString: String) -> (rank: Int, name: String)? {
+        guard let host = URL(string: urlString)?.host?.lowercased() else { return nil }
+        for (rank, site) in mediaSites.enumerated()
+        where host == site.host || host.hasSuffix("." + site.host) {
+            // A YouTube home or search page isn't playing anything.
+            if site.host == "youtube.com", !urlString.contains("/watch"), !urlString.contains("/live") { return nil }
+            return (rank, site.name)
+        }
+        return nil
+    }
+
+    private static func siteName(host: String) -> String {
+        let host = host.lowercased()
+        return mediaSites.first { host == $0.host || host.hasSuffix("." + $0.host) }?.name
+            ?? host.replacingOccurrences(of: "www.", with: "")
+    }
+
+    /// Pick the tab most likely to be the one playing.
+    private static func bestTab(in raw: String) -> NowPlaying? {
+        var best: (score: Int, title: String, name: String)?
+        for line in raw.split(separator: "\n") {
+            let fields = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false).map(String.init)
+            guard fields.count == 3, let site = site(for: fields[1]) else { continue }
+            let title = cleanTitle(fields[2])
+            guard !title.isEmpty, title.caseInsensitiveCompare(site.name) != .orderedSame else { continue }
+            let score = (mediaSites.count - site.rank) * 2 + (fields[0] == "true" ? 1 : 0)
+            if best == nil || score > best!.score { best = (score, title, site.name) }
+        }
+        guard let best else { return nil }
+        return NowPlaying(title: best.title, artist: best.name, album: nil, isPlaying: true)
+    }
+
+    /// "(3) Song name - YouTube" → "Song name".
+    private static func cleanTitle(_ raw: String) -> String {
+        var title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let match = title.range(of: #"^\(\d+\)\s+"#, options: .regularExpression) {
+            title.removeSubrange(match)
+        }
+        for suffix in [" - YouTube Music", " - YouTube", " | Spotify", " - Twitch", " | Netflix",
+                       " | SoundCloud", " | Free Listening on SoundCloud", " on Vimeo", " - Deezer",
+                       " on Apple Music", " | TIDAL", " - Prime Video", " | Disney+", " | Max"] {
+            if title.hasSuffix(suffix) { title.removeLast(suffix.count) }
+        }
+        // Spotify's web player prefixes "Spotify – ".
+        if title.hasPrefix("Spotify – ") { title.removeFirst("Spotify – ".count) }
+        return title.trimmingCharacters(in: .whitespaces)
     }
 
     private static let noTrackSentinel = "__voulum_no_track__"
