@@ -6,7 +6,7 @@
 # Used both locally and by the release workflow. Steps:
 #   1. build Release unsigned (xcodebuild)
 #   2. sign inside-out: Sparkle helpers → Sparkle.framework → Voulum.app
-#   3. package and sign the .dmg
+#   3. package the .dmg with its installer window (scripts/dmg), then sign it
 #   4. notarize with notarytool, then staple the ticket
 #   5. write build/updates/appcast.xml, the Sparkle feed for this DMG
 #      (locally only: the release workflow builds its own from a secret)
@@ -130,13 +130,30 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 
 DMG="${BUILD_DIR}/Voulum-v${version}-macos.dmg"
 step "Packaging $(basename "$DMG")"
-STAGE="$(mktemp -d)/dmg"
-mkdir -p "$STAGE"
+command -v create-dmg >/dev/null || die "create-dmg not found (brew install create-dmg)."
+# The installer window: artwork from scripts/dmg (660x400 points; the icon
+# positions below match it). Finder lays the window out, so the first run asks
+# to let your terminal control Finder. The height adds the 28pt title bar.
+DMG_ART="${REPO_ROOT}/scripts/dmg"
+STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
+tiffutil -cathidpicheck "${DMG_ART}/background.png" "${DMG_ART}/background@2x.png" \
+  -out "${STAGE}.tiff" 2>/dev/null
 rm -f "$DMG"
-hdiutil create -quiet -volname "Voulum" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
-rm -rf "$(dirname "$STAGE")"
+create-dmg \
+  --volname "Voulum" \
+  --volicon "${APP}/Contents/Resources/AppIcon.icns" \
+  --background "${STAGE}.tiff" \
+  --window-pos 200 160 \
+  --window-size 660 428 \
+  --icon-size 128 \
+  --text-size 13 \
+  --icon "Voulum.app" 170 190 \
+  --hide-extension "Voulum.app" \
+  --app-drop-link 490 190 \
+  --no-internet-enable \
+  "$DMG" "$STAGE" >/dev/null
+rm -rf "$STAGE" "${STAGE}.tiff"
 $adhoc || sign "$DMG"
 
 # --- 4. Notarize ------------------------------------------------------------
