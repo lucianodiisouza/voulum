@@ -22,5 +22,8 @@ cask "voulum" do
 
   # Voulum stores nothing but a UserDefaults domain and an SMAppService login
   # item; `brew uninstall` drops the app, `zap` clears the leftovers.
-  zap trash: "~/Library/Preferences/com.voulum.app.plist"
+  zap trash: [
+    "~/Library/Preferences/dev.oprimo.voulum.plist",
+    "~/Library/Preferences/com.voulum.app.plist", # 0.4.1 and older
+  ]
 end

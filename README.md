@@ -188,20 +188,20 @@ is on in **System Settings ▸ Privacy & Security ▸ Screen & System Audio
 Recording**. To start over and get the permission prompt again:
 
 ```bash
-tccutil reset All com.voulum.app
+tccutil reset All dev.oprimo.voulum
 ```
 
 **Logs.** Voulum logs to the unified log:
 
 ```bash
-log stream --predicate 'subsystem == "com.voulum.app"' --level info
+log stream --predicate 'subsystem == "dev.oprimo.voulum"' --level info
 ```
 
 **Start fresh.** Quit Voulum, then clear its saved settings (volumes, presets,
 shortcuts):
 
 ```bash
-defaults delete com.voulum.app
+defaults delete dev.oprimo.voulum
 ```
 
 ## Uninstall
@@ -210,8 +210,8 @@ Quit Voulum from the popup, then:
 
 ```bash
 rm -rf /Applications/Voulum.app
-defaults delete com.voulum.app
-tccutil reset All com.voulum.app
+defaults delete dev.oprimo.voulum
+tccutil reset All dev.oprimo.voulum
 ```
 
 With Homebrew, `brew uninstall --cask --zap voulum` removes the app and its settings.
