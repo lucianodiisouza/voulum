@@ -63,9 +63,9 @@ final class AudioEngine: ObservableObject {
     /// The concrete device UIDs each tap was last routed to.
     private var appliedRoutes: [String: [String]] = [:]
 
-    private let halQueue = DispatchQueue(label: "com.voulum.hal", qos: .userInitiated)
+    private let halQueue = DispatchQueue(label: "dev.oprimo.voulum.hal", qos: .userInitiated)
     /// Blocking AppleScript round-trips run here, off main and off the HAL queue.
-    let transportQueue = DispatchQueue(label: "com.voulum.nowplaying", qos: .userInitiated)
+    let transportQueue = DispatchQueue(label: "dev.oprimo.voulum.nowplaying", qos: .userInitiated)
     private var reloadInFlight = false
     private var reloadAgain = false
     private var nowPlayingInFlight = false

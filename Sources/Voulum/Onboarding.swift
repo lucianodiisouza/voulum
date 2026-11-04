@@ -21,7 +21,7 @@ final class AudioPermissionProbe {
     private var procID: AudioDeviceIOProcID?
     /// [0] heard anything (0/1), [1] smoothed loudness 0…1.
     private let shared = UnsafeMutablePointer<Float>.allocate(capacity: 2)
-    private let queue = DispatchQueue(label: "com.voulum.permission-probe", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "dev.oprimo.voulum.permission-probe", qos: .userInitiated)
     private var running = false
 
     init() { shared.initialize(repeating: 0, count: 2) }

@@ -16,6 +16,9 @@ final class Updater: ObservableObject {
     @Published private(set) var canCheckForUpdates = false
 
     let isConfigured: Bool
+
+    /// "0.4.1", for Settings and the popup's footer.
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
     private let controller: SPUStandardUpdaterController
 
     init() {

@@ -17,7 +17,8 @@
 #
 set -euo pipefail
 
-BUNDLE_ID="com.voulum.app"
+# The current identifier, then the one 0.4.1 and older shipped with.
+BUNDLE_IDS=("dev.oprimo.voulum" "com.voulum.app")
 APP_NAME="Voulum"
 CLEANUP_FLAG="--uninstall-cleanup"
 CLEANUP_TIMEOUT=15
@@ -73,9 +74,11 @@ add_app() {
 add_app "/Applications/${APP_NAME}.app"
 add_app "${HOME}/Applications/${APP_NAME}.app"
 if command -v mdfind >/dev/null 2>&1; then
-  while IFS= read -r p; do
-    [[ -n "$p" ]] && add_app "$p"
-  done < <(mdfind "kMDItemCFBundleIdentifier == '${BUNDLE_ID}'" 2>/dev/null || true)
+  for id in "${BUNDLE_IDS[@]}"; do
+    while IFS= read -r p; do
+      [[ -n "$p" ]] && add_app "$p"
+    done < <(mdfind "kMDItemCFBundleIdentifier == '${id}'" 2>/dev/null || true)
+  done
 fi
 
 step "Quitting running ${APP_NAME} instances"
@@ -120,14 +123,18 @@ if [[ -d "${BUILD_DIR}" ]]; then
 fi
 
 if [[ "${clear_defaults}" == true ]]; then
-  step "Clearing UserDefaults for ${BUNDLE_ID}"
-  defaults delete "${BUNDLE_ID}" 2>/dev/null && echo "  cleared" || echo "  nothing stored"
+  for id in "${BUNDLE_IDS[@]}"; do
+    step "Clearing UserDefaults for ${id}"
+    defaults delete "${id}" 2>/dev/null && echo "  cleared" || echo "  nothing stored"
+  done
 fi
 
 if [[ "${reset_permission}" == true ]]; then
-  step "Revoking audio/microphone permission (TCC) for ${BUNDLE_ID}"
-  tccutil reset Microphone "${BUNDLE_ID}" 2>/dev/null && echo "  microphone reset" || echo "  microphone: nothing to reset"
-  tccutil reset AudioCapture "${BUNDLE_ID}" 2>/dev/null && echo "  audio-capture reset" || true
+  for id in "${BUNDLE_IDS[@]}"; do
+    step "Revoking audio/microphone permission (TCC) for ${id}"
+    tccutil reset Microphone "${id}" 2>/dev/null && echo "  microphone reset" || echo "  microphone: nothing to reset"
+    tccutil reset AudioCapture "${id}" 2>/dev/null && echo "  audio-capture reset" || true
+  done
 fi
 
 step "Done."

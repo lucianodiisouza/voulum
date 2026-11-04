@@ -130,6 +130,14 @@ struct PopupView: View {
     // MARK: Footer
 
     private var footer: some View {
+        VStack(spacing: 0) {
+            controls
+            Divider().padding(.horizontal, 16)
+            UpdateRow(updater: AppDelegate.updater)
+        }
+    }
+
+    private var controls: some View {
         HStack(spacing: 10) {
             Button {
                 SettingsWindowController.shared.show()
@@ -156,6 +164,33 @@ struct PopupView: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
+    }
+}
+
+/// The popup's last line: the version, and the update check one click away
+/// instead of two windows deep.
+private struct UpdateRow: View {
+    @ObservedObject var updater: Updater
+
+    var body: some View {
+        HStack {
+            Text(verbatim: "Voulum \(Updater.version)")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            Spacer()
+            if updater.isConfigured {
+                Button {
+                    updater.checkForUpdates()
+                } label: {
+                    Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.borderless)
+                .disabled(!updater.canCheckForUpdates)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 }
 

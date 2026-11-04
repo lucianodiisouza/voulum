@@ -40,7 +40,7 @@ codesign --force --deep --sign - \
 
 Set `VOULUM_SELFTEST=1` to run a headless smoke test of the tap pipeline on the
 first playing process (it ramps the gain and logs each Core Audio status to
-stderr and the unified log under subsystem `com.voulum.app`). Off by default.
+stderr and the unified log under subsystem `dev.oprimo.voulum`). Off by default.
 
 ```bash
 VOULUM_SELFTEST=1 /Applications/Voulum.app/Contents/MacOS/Voulum

@@ -3,7 +3,7 @@ import CoreAudio
 import Foundation
 import OSLog
 
-let log = Logger(subsystem: "com.voulum.app", category: "audio")
+let log = Logger(subsystem: "dev.oprimo.voulum", category: "audio")
 
 /// Small, throwing wrappers around the Core Audio property C API so the rest of
 /// the code can read/write typed values without manual `AudioObjectID` juggling.

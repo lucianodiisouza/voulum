@@ -53,6 +53,7 @@ struct SettingsEntry: Identifiable {
         .init(id: "pause-others", title: String(localized: "Pause other apps on play"), tab: .general, keywords: "behavior transport play pause"),
         .init(id: "step", title: String(localized: "Volume step"), tab: .general, keywords: "arrow keys scroll wheel increment"),
         .init(id: "updates", title: String(localized: "Updates"), tab: .general, keywords: "sparkle check version automatic"),
+        .init(id: "primo-apps", title: String(localized: "More from Primo"), tab: .about, keywords: "apps primodock primoengine cleanuai flecha recta primorec notchy"),
         .init(id: "onboarding", title: String(localized: "Show welcome tour"), tab: .general, keywords: "onboarding intro tutorial setup watch again"),
         .init(id: "pinned", title: String(localized: "Pinned apps"), tab: .apps, keywords: "pin keep"),
         .init(id: "ignored", title: String(localized: "Ignored apps"), tab: .apps, keywords: "ignore hide exclude blacklist"),
@@ -103,8 +104,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             // Full-height translucent sidebar under a unified toolbar.
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.toolbar = NSToolbar(identifier: "settings")
+            // Keep the titlebar's own material: content scrolls under a blur
+            // instead of colliding with the page title.
             window.toolbarStyle = .unified
-            window.titlebarAppearsTransparent = true
             window.setContentSize(NSSize(width: 780, height: 540))
             window.contentMinSize = NSSize(width: 680, height: 440)
             window.isReleasedWhenClosed = false
@@ -205,7 +207,7 @@ struct SettingsView: View {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Voulum").font(.caption.weight(.semibold))
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")")
+                Text("Version \(Updater.version)")
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
@@ -342,13 +344,24 @@ private struct GeneralSettings: View {
                 }
                 .settingsAnchor("onboarding")
             }
-            if updater.isConfigured {
-                Section("Updates") {
-                    Toggle("Check for updates automatically", isOn: Binding(
-                        get: { updater.automaticallyChecks }, set: { updater.automaticallyChecks = $0 }))
-                        .settingsAnchor("updates")
-                    Button("Check for Updates Now") { updater.checkForUpdates() }
-                        .disabled(!updater.canCheckForUpdates)
+            Section {
+                LabeledContent("Version") {
+                    HStack(spacing: 10) {
+                        Text(verbatim: Updater.version).monospacedDigit()
+                        Button("Check for Updates Now") { updater.checkForUpdates() }
+                            .disabled(!updater.canCheckForUpdates)
+                    }
+                }
+                .settingsAnchor("updates")
+                Toggle("Check for updates automatically", isOn: Binding(
+                    get: { updater.automaticallyChecks }, set: { updater.automaticallyChecks = $0 }))
+                    .disabled(!updater.isConfigured)
+            } header: {
+                Text("Updates")
+            } footer: {
+                if !updater.isConfigured {
+                    Text("This build can't update itself. New versions are on GitHub.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
@@ -637,10 +650,32 @@ private struct EqualizerSettings: View {
 
 private struct AboutSettings: View {
     var body: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                header
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("More from Primo")
+                        .font(.headline)
+                        .padding(.leading, 4)
+                        .settingsAnchor("primo-apps")
+                    PrimoAppsList()
+                        .padding(6)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
+                }
+                .frame(maxWidth: 460)
+                .padding(.top, 28)
+            }
+            .padding(.vertical, 30)
+            .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var header: some View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
             Text("Voulum").font(.title.weight(.semibold)).settingsAnchor("about")
-            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")")
+            Text("Version \(Updater.version)")
                 .foregroundStyle(.secondary)
             Text("Per-app volume, routing and EQ for macOS.\nFree and open source under the MIT license.")
                 .multilineTextAlignment(.center)
@@ -650,9 +685,6 @@ private struct AboutSettings: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding(.top, 12)
-            Spacer()
         }
-        .padding(.top, 30)
-        .frame(maxWidth: .infinity)
     }
 }
