@@ -33,6 +33,54 @@
         }
       }
     },
+    "A Dock with workspaces and live widgets": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um Dock com ambientes e widgets ao vivo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un Dock con espacios y widgets en vivo"
+          }
+        }
+      }
+    },
+    "A native Mac cleaner with a one-time price": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpador de Mac nativo, com pagamento único"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpiador de Mac nativo, con pago único"
+          }
+        }
+      }
+    },
+    "A teleprompter in your Mac's notch": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teleprompter no notch do Mac"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teleprompter en el notch del Mac"
+          }
+        }
+      }
+    },
     "About": {
       "localizations": {
         "pt-BR": {
@@ -125,6 +173,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Permite que Voulum controle esta app en Ajustes del Sistema ▸ Privacidad y seguridad ▸ Automatización."
+          }
+        }
+      }
+    },
+    "An open source browser for developers": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navegador open source pra devs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navegador de código abierto para devs"
           }
         }
       }
@@ -397,6 +461,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Buscar actualizaciones ahora"
+          }
+        }
+      }
+    },
+    "Check for Updates…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procurar atualizações…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar actualizaciones…"
           }
         }
       }
@@ -913,6 +993,22 @@
         }
       }
     },
+    "GitHub": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        }
+      }
+    },
     "Global shortcuts": {
       "localizations": {
         "pt-BR": {
@@ -1329,6 +1425,22 @@
         }
       }
     },
+    "Living wallpapers that pause when nobody's looking": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wallpapers vivos que pausam quando ninguém está vendo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fondos vivos que se pausan cuando nadie mira"
+          }
+        }
+      }
+    },
     "Loudness": {
       "localizations": {
         "pt-BR": {
@@ -1389,6 +1501,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Más"
+          }
+        }
+      }
+    },
+    "More from Primo": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mais do Primo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más de Primo"
           }
         }
       }
@@ -1697,6 +1825,22 @@
         }
       }
     },
+    "Open": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir"
+          }
+        }
+      }
+    },
     "Open %@": {
       "localizations": {
         "pt-BR": {
@@ -1917,6 +2061,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Volumen, salida y EQ por app en macOS.\nGratis y de código abierto con licencia MIT."
+          }
+        }
+      }
+    },
+    "Personal and household finances in one place": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finanças pessoais e da casa num lugar só"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finanzas personales y del hogar en un solo lugar"
           }
         }
       }
@@ -2369,6 +2529,22 @@
         }
       }
     },
+    "Shoot landscape, post vertical, on iPhone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grave na horizontal, poste na vertical, no iPhone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graba en horizontal, publica en vertical, en iPhone"
+          }
+        }
+      }
+    },
     "Shortcuts": {
       "localizations": {
         "pt-BR": {
@@ -2689,6 +2865,22 @@
         }
       }
     },
+    "This build can't update itself. New versions are on GitHub.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este build não se atualiza sozinho. As versões novas ficam no GitHub."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta compilación no se actualiza sola. Las versiones nuevas están en GitHub."
+          }
+        }
+      }
+    },
     "This device sets its own volume.": {
       "localizations": {
         "pt-BR": {
@@ -2945,6 +3137,22 @@
         }
       }
     },
+    "Version": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versão"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versión"
+          }
+        }
+      }
+    },
     "Version %@": {
       "localizations": {
         "pt-BR": {
@@ -3181,6 +3389,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Onda"
+          }
+        }
+      }
+    },
+    "Website": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver site"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver sitio"
           }
         }
       }
