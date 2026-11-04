@@ -12,7 +12,7 @@ Click the menu-bar icon and you see every app currently playing audio. Each one
 gets:
 
 - 🔎 **a jump button** — bring that app to the front so you can find the sound
-- 🔊 **a volume slider** — from mute, through normal, up to 2× boost
+- 🔊 **a volume slider** — from mute, through normal, up to 3× boost
 - 🔇 **a mute toggle** — silence one app without touching the rest
 
 The list updates itself while the menu is open — no refresh needed.
