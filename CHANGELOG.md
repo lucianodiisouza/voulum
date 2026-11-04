@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.1](https://github.com/lucianodiisouza/voulum/compare/v0.4.0...v0.4.1) (2026-11-04)
+
+Released by hand from a local, notarized build (PR #13).
+
+### Features
+
+* per-app output routing, including several outputs at once, with fallback when a device disconnects
+* 10-band EQ per app with built-in and saved presets
+* global shortcuts, full keyboard control in the popup and a `voulum://` URL scheme
+* tab titles for audio playing in Safari, Chrome, Arc, Opera and Flecha
+* new popup without an arrow, in Frosted or Liquid Glass; redesigned Settings with search
+* welcome tour, new app icon, Brazilian Portuguese and Spanish
+* Developer ID signed and notarized, with Sparkle auto-updates
+
 ## [0.4.0](https://github.com/lucianodiisouza/voulum/compare/v0.3.1...v0.4.0) (2026-07-29)
 
 
