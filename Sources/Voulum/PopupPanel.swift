@@ -105,5 +105,6 @@ final class PopupPanel: NSPanel {
         x = min(max(x, visible.minX + 8), visible.maxX - size.width - 8)
         let top = min(anchor.minY - 6, visible.maxY)
         setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
+        invalidateShadow()
     }
 }
